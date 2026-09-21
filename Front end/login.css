@@ -1,0 +1,40 @@
+body {
+    background-color: #2e290426;
+}
+
+.login-card {
+    background-color: white;
+    width: 400px;
+    padding: 40px;
+    margin: 100px auto;
+    border-radius: 10px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 8px;
+    color: #1E293B;
+}
+input {
+    display: block;
+    width: 80%;
+    margin: 0 auto 18px auto;
+    padding: 12px;
+}
+.login-button {
+    padding: 20px;
+    width: 80%;
+    background-color: rgb(0, 170, 255);
+    color: black;
+    font-size: large;
+    align-self: center;
+    display: block;
+    margin: 0 auto;
+    border-radius: 10px;
+}
+p{
+    text-align: center;
+}
+a{
+    color: blue;
+}
