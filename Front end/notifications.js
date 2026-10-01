@@ -1,132 +1,289 @@
+/* =========================
+   MOCK NOTIFICATION DATA
+========================= */
+
 const notifications = [
+
     {
         id: 1,
+
         type: "queue-update",
+
         title: "Queue Updated",
-        message: "Your position changed from #5 to #3.",
+
+        message:
+            "Your position changed from #5 to #3.",
+
         time: "2 minutes ago",
+
         read: false
     },
+
 
     {
         id: 2,
+
         type: "status-change",
+
         title: "Almost Ready",
-        message: "You are next in the queue. Please be ready.",
+
+        message:
+            "You are next in the queue. Please be ready.",
+
         time: "5 minutes ago",
+
         read: false
     },
 
+
     {
         id: 3,
+
         type: "status-change",
-        title: "Status Changed",
-        message: "Your service has been completed.",
+
+        title: "Service Completed",
+
+        message:
+            "Your service has been completed successfully.",
+
         time: "20 minutes ago",
+
         read: true
     },
 
+
     {
         id: 4,
+
         type: "queue-update",
+
         title: "Queue Joined",
-        message: "You successfully joined the Financial Aid queue.",
+
+        message:
+            "You successfully joined the Financial Aid queue.",
+
         time: "30 minutes ago",
+
         read: true
     }
+
 ];
 
 
+/* =========================
+   ELEMENT REFERENCES
+========================= */
+
 const notificationButton =
-    document.getElementById("notificationButton");
+    document.getElementById(
+        "notificationButton"
+    );
+
 
 const notificationPanel =
-    document.getElementById("notificationPanel");
+    document.getElementById(
+        "notificationPanel"
+    );
+
 
 const notificationList =
-    document.getElementById("notificationList");
+    document.getElementById(
+        "notificationList"
+    );
+
 
 const notificationBadge =
-    document.getElementById("notificationBadge");
+    document.getElementById(
+        "notificationBadge"
+    );
+
 
 const markAllReadButton =
-    document.getElementById("markAllRead");
+    document.getElementById(
+        "markAllRead"
+    );
 
+
+const unreadText =
+    document.getElementById(
+        "unreadText"
+    );
+
+
+/* =========================
+   RENDER NOTIFICATIONS
+========================= */
 
 function renderNotifications() {
 
     notificationList.innerHTML = "";
 
-    notifications.forEach(notification => {
 
-        const notificationElement =
-            document.createElement("div");
+    if (notifications.length === 0) {
 
-        notificationElement.classList.add(
-            "notification-item"
-        );
+        notificationList.innerHTML = `
 
+            <div class="empty-state">
 
-        if (!notification.read) {
-            notificationElement.classList.add("unread");
-        }
+                <h3>No notifications</h3>
 
+                <p>
+                    Queue updates and status changes
+                    will appear here.
+                </p>
 
-        const typeText =
-            notification.type === "queue-update"
-                ? "Queue Update"
-                : "Status Change";
-
-
-        notificationElement.innerHTML = `
-            <span class="notification-type ${notification.type}">
-                ${typeText}
-            </span>
-
-            <div class="notification-title">
-                ${notification.title}
             </div>
 
-            <div class="notification-message">
-                ${notification.message}
-            </div>
-
-            <div class="notification-time">
-                ${notification.time}
-            </div>
         `;
 
 
-        notificationElement.addEventListener(
-            "click",
-            function () {
+        updateNotificationBadge();
 
-                if (!notification.read) {
+        return;
+    }
 
-                    notification.read = true;
 
-                    renderNotifications();
-                }
+    notifications.forEach(
+        notification => {
+
+            const notificationElement =
+                document.createElement("div");
+
+
+            notificationElement.classList.add(
+                "notification-item"
+            );
+
+
+            if (!notification.read) {
+
+                notificationElement.classList.add(
+                    "unread"
+                );
 
             }
-        );
 
 
-        notificationList.appendChild(
-            notificationElement
-        );
-    });
+            /* Determine notification style */
+
+            const isQueueUpdate =
+                notification.type ===
+                "queue-update";
+
+
+            const iconClass =
+                isQueueUpdate
+                    ? "queue"
+                    : "status";
+
+
+            const iconText =
+                isQueueUpdate
+                    ? "↕"
+                    : "✓";
+
+
+            const typeText =
+                isQueueUpdate
+                    ? "Queue Update"
+                    : "Status Change";
+
+
+            /* Create HTML */
+
+            notificationElement.innerHTML = `
+
+                <div
+                    class="notification-icon ${iconClass}"
+                >
+                    ${iconText}
+                </div>
+
+
+                <div class="notification-content">
+
+                    <span
+                        class="notification-type ${notification.type}"
+                    >
+                        ${typeText}
+                    </span>
+
+
+                    <div class="notification-top">
+
+                        <div class="notification-title">
+                            ${notification.title}
+                        </div>
+
+                        ${
+                            !notification.read
+                                ? `
+                                    <span
+                                        class="unread-dot"
+                                        aria-label="Unread notification"
+                                    ></span>
+                                  `
+                                : ""
+                        }
+
+                    </div>
+
+
+                    <div class="notification-message">
+                        ${notification.message}
+                    </div>
+
+
+                    <span class="notification-time">
+                        ${notification.time}
+                    </span>
+
+                </div>
+
+            `;
+
+
+            /* Mark individual notification as read */
+
+            notificationElement.addEventListener(
+                "click",
+                function () {
+
+                    if (!notification.read) {
+
+                        notification.read = true;
+
+                        renderNotifications();
+
+                    }
+
+                }
+            );
+
+
+            notificationList.appendChild(
+                notificationElement
+            );
+
+        }
+    );
 
 
     updateNotificationBadge();
+
 }
 
+
+/* =========================
+   UPDATE BADGE & HEADER
+========================= */
 
 function updateNotificationBadge() {
 
     const unreadCount =
         notifications.filter(
-            notification => !notification.read
+            notification =>
+                !notification.read
         ).length;
 
 
@@ -134,28 +291,63 @@ function updateNotificationBadge() {
         unreadCount;
 
 
+    /* No unread notifications */
+
     if (unreadCount === 0) {
 
-        notificationBadge.style.display = "none";
+        notificationBadge.style.display =
+            "none";
 
-        markAllReadButton.disabled = true;
+
+        unreadText.textContent =
+            "You're all caught up";
+
+
+        markAllReadButton.disabled =
+            true;
+
 
         markAllReadButton.textContent =
             "All read";
 
-    } else {
+    }
 
-        notificationBadge.style.display = "flex";
+    /* At least one unread notification */
 
-        markAllReadButton.disabled = false;
+    else {
+
+        notificationBadge.style.display =
+            "flex";
+
+
+        if (unreadCount === 1) {
+
+            unreadText.textContent =
+                "1 unread notification";
+
+        } else {
+
+            unreadText.textContent =
+                `${unreadCount} unread notifications`;
+
+        }
+
+
+        markAllReadButton.disabled =
+            false;
+
 
         markAllReadButton.textContent =
             "Mark all as read";
+
     }
+
 }
 
 
-/* Open and close notification panel */
+/* =========================
+   OPEN / CLOSE PANEL
+========================= */
 
 notificationButton.addEventListener(
     "click",
@@ -163,15 +355,23 @@ notificationButton.addEventListener(
 
         event.stopPropagation();
 
-        notificationPanel.classList.toggle(
-            "show"
+
+        const isOpen =
+            notificationPanel.classList.toggle(
+                "show"
+            );
+
+
+        notificationButton.setAttribute(
+            "aria-expanded",
+            isOpen
         );
 
     }
 );
 
 
-/* Prevent clicks inside panel from closing it */
+/* Keep panel open when clicking inside */
 
 notificationPanel.addEventListener(
     "click",
@@ -183,7 +383,9 @@ notificationPanel.addEventListener(
 );
 
 
-/* Mark all notifications as read */
+/* =========================
+   MARK ALL AS READ
+========================= */
 
 markAllReadButton.addEventListener(
     "click",
@@ -199,11 +401,14 @@ markAllReadButton.addEventListener(
 
 
         renderNotifications();
+
     }
 );
 
 
-/* Close when clicking elsewhere */
+/* =========================
+   CLOSE WHEN CLICKING OUTSIDE
+========================= */
 
 document.addEventListener(
     "click",
@@ -213,10 +418,44 @@ document.addEventListener(
             "show"
         );
 
+
+        notificationButton.setAttribute(
+            "aria-expanded",
+            "false"
+        );
+
     }
 );
 
 
-/* Initial display */
+/* =========================
+   CLOSE WITH ESC KEY
+========================= */
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key === "Escape") {
+
+            notificationPanel.classList.remove(
+                "show"
+            );
+
+
+            notificationButton.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================
+   INITIALIZE
+========================= */
 
 renderNotifications();
