@@ -36,6 +36,7 @@ const notifications = [
     }
 ];
 
+
 const notificationButton =
     document.getElementById("notificationButton");
 
@@ -65,17 +66,17 @@ function renderNotifications() {
             "notification-item"
         );
 
+
         if (!notification.read) {
             notificationElement.classList.add("unread");
         }
 
-        let typeText;
 
-        if (notification.type === "queue-update") {
-            typeText = "Queue Update";
-        } else {
-            typeText = "Status Change";
-        }
+        const typeText =
+            notification.type === "queue-update"
+                ? "Queue Update"
+                : "Status Change";
+
 
         notificationElement.innerHTML = `
             <span class="notification-type ${notification.type}">
@@ -95,18 +96,27 @@ function renderNotifications() {
             </div>
         `;
 
+
         notificationElement.addEventListener(
             "click",
             function () {
-                notification.read = true;
-                renderNotifications();
+
+                if (!notification.read) {
+
+                    notification.read = true;
+
+                    renderNotifications();
+                }
+
             }
         );
+
 
         notificationList.appendChild(
             notificationElement
         );
     });
+
 
     updateNotificationBadge();
 }
@@ -119,24 +129,61 @@ function updateNotificationBadge() {
             notification => !notification.read
         ).length;
 
+
     notificationBadge.textContent =
         unreadCount;
 
+
     if (unreadCount === 0) {
+
         notificationBadge.style.display = "none";
+
+        markAllReadButton.disabled = true;
+
+        markAllReadButton.textContent =
+            "All read";
+
     } else {
+
         notificationBadge.style.display = "flex";
+
+        markAllReadButton.disabled = false;
+
+        markAllReadButton.textContent =
+            "Mark all as read";
     }
 }
 
 
+/* Open and close notification panel */
+
 notificationButton.addEventListener(
     "click",
-    function () {
-        notificationPanel.classList.toggle("show");
+    function (event) {
+
+        event.stopPropagation();
+
+        notificationPanel.classList.toggle(
+            "show"
+        );
+
     }
 );
 
+
+/* Prevent clicks inside panel from closing it */
+
+notificationPanel.addEventListener(
+    "click",
+    function (event) {
+
+        event.stopPropagation();
+
+    }
+);
+
+
+/* Mark all notifications as read */
 
 markAllReadButton.addEventListener(
     "click",
@@ -144,28 +191,32 @@ markAllReadButton.addEventListener(
 
         notifications.forEach(
             notification => {
+
                 notification.read = true;
+
             }
         );
+
 
         renderNotifications();
     }
 );
 
 
+/* Close when clicking elsewhere */
+
 document.addEventListener(
     "click",
-    function (event) {
+    function () {
 
-        if (
-            !notificationPanel.contains(event.target)
-            &&
-            !notificationButton.contains(event.target)
-        ) {
-            notificationPanel.classList.remove("show");
-        }
+        notificationPanel.classList.remove(
+            "show"
+        );
+
     }
 );
 
+
+/* Initial display */
 
 renderNotifications();
