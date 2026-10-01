@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QueueSmart - Notifications</title>
+
+    <link rel="stylesheet" href="notifications.css">
+</head>
+
+<body>
+
+    <header class="navbar">
+        <div class="logo">
+            QueueSmart
+        </div>
+
+        <div class="notification-wrapper">
+
+            <button
+                class="notification-button"
+                id="notificationButton"
+                aria-label="Open notifications"
+            >
+                🔔
+                <span class="notification-badge" id="notificationBadge">
+                    0
+                </span>
+            </button>
+
+            <div
+                class="notification-panel"
+                id="notificationPanel"
+            >
+
+                <div class="notification-header">
+                    <h2>Notifications</h2>
+
+                    <button id="markAllRead">
+                        Mark all as read
+                    </button>
+                </div>
+
+                <div
+                    class="notification-list"
+                    id="notificationList"
+                >
+                </div>
+
+            </div>
+
+        </div>
+    </header>
+
+
+    <main class="page-content">
+
+        <h1>QueueSmart</h1>
+
+        <p>
+            Click the notification bell in the top-right corner
+            to view your queue notifications.
+        </p>
+
+    </main>
+
+
+    <script src="notifications.js"></script>
+
+</body>
+</html>
