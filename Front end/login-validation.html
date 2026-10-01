@@ -1,0 +1,115 @@
+<!-- Part 5 -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Login - QueueSmart</title>
+
+    <!-- Keep teammate's original styling -->
+    <link rel="stylesheet" href="login.css">
+
+    <!-- Your validation styling -->
+    <link rel="stylesheet" href="validation.css">
+</head>
+
+<body>
+
+    <div class="login-card">
+
+        <h1>Login</h1>
+
+        <form
+            id="loginForm"
+            novalidate
+        >
+
+            <!-- EMAIL -->
+
+            <div class="form-group">
+
+                <label for="email">
+                    Email:
+                </label>
+
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    autocomplete="email"
+                    data-label="Email"
+                >
+
+                <small
+                    class="validation-message"
+                    id="emailError"
+                ></small>
+
+            </div>
+
+
+            <!-- PASSWORD -->
+
+            <div class="form-group">
+
+                <label for="password">
+                    Password:
+                </label>
+
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    minlength="8"
+                    required
+                    autocomplete="current-password"
+                    data-label="Password"
+                >
+
+                <small
+                    class="validation-message"
+                    id="passwordError"
+                ></small>
+
+            </div>
+
+
+            <button
+                class="login-button"
+                type="submit"
+            >
+                Login
+            </button>
+
+
+            <div
+                class="form-success"
+                id="formSuccess"
+                role="status"
+            ></div>
+
+        </form>
+
+
+        <p>
+            Don't have an account?
+            <a href="register.html">
+                Sign up
+            </a>
+        </p>
+
+    </div>
+
+
+    <script src="validation.js"></script>
+
+</body>
+
+</html>
