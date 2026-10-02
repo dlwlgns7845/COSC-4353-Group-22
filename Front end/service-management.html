@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Service Management - QueueSmart</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="validation.css">
 </head>
 <body>
 
@@ -31,23 +32,26 @@
 
         <div class="field">
           <label for="name">Service name *</label>
-          <input type="text" id="name" maxlength="100" placeholder="Ex: Financial Aid">
+          <input type="text" id="name" required maxlength="100"
+                 data-label="Service name" placeholder="Ex: Financial Aid">
           <p class="hint"><span id="nameCount">0</span> / 100 characters</p>
-          <p class="error" id="nameError"></p>
+          <small class="validation-message" id="nameError"></small>
         </div>
 
         <div class="field">
           <label for="description">Description *</label>
-          <textarea id="description" rows="3" maxlength="300"
+          <textarea id="description" rows="3" required maxlength="300"
+                    data-label="Description"
                     placeholder="What does this service help with?"></textarea>
-          <p class="error" id="descriptionError"></p>
+          <small class="validation-message" id="descriptionError"></small>
         </div>
 
         <div class="card-row">
           <div class="field" style="flex:1">
             <label for="duration">Expected duration (minutes) *</label>
-            <input type="number" id="duration" min="1" max="240" placeholder="Ex: 15">
-            <p class="error" id="durationError"></p>
+            <input type="number" id="duration" required min="1" max="240"
+                   data-label="Expected duration" placeholder="Ex: 15">
+            <small class="validation-message" id="durationError"></small>
           </div>
 
           <div class="field" style="flex:1">
@@ -85,61 +89,16 @@
 
   <script src="data.js"></script>
   <script src="nav.js"></script>
+  <script src="validation.js"></script>
   <script>
     renderNav("services", "admin");
 
     /* =======================================================
        VALIDATION
-       Returns true when every field is fine.
-       Each rule shows its own red message under the field.
+       The rules live in the HTML attributes of each field
+       (required, maxlength, min, max). validateForm comes from
+       validation.js, so the whole app checks forms the same way.
        ======================================================= */
-    function validateForm() {
-      let isValid = true;
-
-      const name = document.getElementById("name").value.trim();
-      const description = document.getElementById("description").value.trim();
-      const duration = document.getElementById("duration").value;
-
-      /* --- service name: required, max 100 characters --- */
-      const nameError = document.getElementById("nameError");
-      if (name === "") {
-        nameError.textContent = "Service name is required.";
-        nameError.style.display = "block";
-        isValid = false;
-      } else if (name.length > 100) {
-        nameError.textContent = "Service name cannot be longer than 100 characters.";
-        nameError.style.display = "block";
-        isValid = false;
-      } else {
-        nameError.style.display = "none";
-      }
-
-      /* --- description: required --- */
-      const descriptionError = document.getElementById("descriptionError");
-      if (description === "") {
-        descriptionError.textContent = "Description is required.";
-        descriptionError.style.display = "block";
-        isValid = false;
-      } else {
-        descriptionError.style.display = "none";
-      }
-
-      /* --- duration: required, and a number from 1 to 240 --- */
-      const durationError = document.getElementById("durationError");
-      if (duration === "") {
-        durationError.textContent = "Expected duration is required.";
-        durationError.style.display = "block";
-        isValid = false;
-      } else if (Number(duration) < 1 || Number(duration) > 240) {
-        durationError.textContent = "Duration must be between 1 and 240 minutes.";
-        durationError.style.display = "block";
-        isValid = false;
-      } else {
-        durationError.style.display = "none";
-      }
-
-      return isValid;
-    }
 
     /* =======================================================
        SAVE - create a new service, or update an existing one
@@ -147,7 +106,7 @@
     document.getElementById("serviceForm").addEventListener("submit", function (event) {
       event.preventDefault();
 
-      if (!validateForm()) {
+      if (!validateForm(this)) {
         return;                   // stop here, the red messages are showing
       }
 
@@ -229,9 +188,12 @@
       document.getElementById("submitButton").textContent = "Create service";
       document.getElementById("cancelButton").style.display = "none";
 
-      /* hide any red messages that were left over */
-      document.querySelectorAll(".error").forEach(function (box) {
-        box.style.display = "none";
+      /* clear any messages left over from the last attempt */
+      document.querySelectorAll(".validation-message").forEach(function (box) {
+        box.textContent = "";
+      });
+      document.querySelectorAll(".input-error").forEach(function (field) {
+        field.classList.remove("input-error");
       });
 
       updateNameCount();

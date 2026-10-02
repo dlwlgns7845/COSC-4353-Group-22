@@ -66,5 +66,7 @@ a service all create a new notification.
 | Service (join queue) | must be selected |
 | History date filter | `type="date"`, the from date must not be after the to date |
 
-`validation.js` reads the HTML attributes of each field, so the same file can be
-reused on any new form without writing new rules.
+`validation.js` reads the HTML attributes of each field, so the same file is used
+on the login, registration and service management forms without writing new rules
+for each one. The history date filter keeps its own check because it compares two
+fields against each other, which the attribute rules cannot express.

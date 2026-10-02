@@ -49,6 +49,9 @@ h2 {
     justify-content: center;
     flex-wrap: wrap;
     margin-top: 24px;
+
+    /* side padding so the cards never touch the screen edge */
+    padding: 0 16px;
 }
 
 /* a card that holds a table needs more room than 400px */
@@ -66,5 +69,6 @@ h2 {
 
 /* keep the cards readable on a phone */
 @media (max-width: 480px) {
-    .card { width: 100%; padding: 24px; }
+    .card { width: 100%; padding: 24px; min-height: 0; }
+    h1 { font-size: 24px; }
 }
