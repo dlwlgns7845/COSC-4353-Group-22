@@ -1,5 +1,5 @@
 body{
-    background-color: red;
+    background-color: #2e290426;
 }
 h1 {
 text-align: center;
@@ -12,14 +12,22 @@ p{
 }
 
 .card{
-    background-color: black;
+    background-color: white;
     width: 400px;
     padding: 40px;
     margin: 100px auto;
     border-radius: 10px;
+    min-height: 250px;
+
+    display: flex;
+    flex-direction: column;
 }
 
-.dashboard-container {
+.card a{
+    margin-top: auto;
+}
+
+.container {
     display: flex;
     gap: 20px;
     justify-content: center;
