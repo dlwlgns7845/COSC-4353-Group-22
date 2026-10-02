@@ -4,38 +4,40 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>My Dashboard</title>
-        <link rel = "stylesheet" href = "dashboard.css">
+        <link rel = "stylesheet" href = "user_style.css">
     </head>
     
     <body>
         <h1>My Dashboard</h1>
 
-        <div>
-            <h2>Queue Status</h2>
-            <h3>Overview of queue status</h3>
+        <div class = "dashboard-container">
+            <div class = "card">
+                <h2>Queue Status</h2>
 
-            <p>Position: </p>
-            <p>Wait time: </p>
+                <p>Position: </p>
+                <p>Wait time: </p>
 
-            <a href = "queue_status.html">Queue Status</a>
-        </div>
+                <a href = "queue_status.html">Queue Status</a>
+            </div>
         
-        <div>
-            <h2>Active Services Available</h2>
+            <div class = "card">
+                <h2>Active Services Available</h2>
 
-            <p>Active service 1</p>
-            <p>Active service 2</p>
-            <p>Active service 3</p>
+                <p>Active service 1</p>
+                <p>Active service 2</p>
+                <p>Active service 3</p>
 
-            <a href = "join_queue.html">Join Queue</a> 
-        </div>
+                <a href = "join_queue.html">Join Queue</a> 
+            </div>
 
-        <div>
-            <h2>Notification Summary</h2>
-            <p>you have 2 notifications</p>
+            <div class = "card">
+                <h2>Notification Summary</h2>
 
-             <a href = "history.html">History</a> 
+                <p>you have 2 notifications</p>
 
+                <a href = "history.html">History</a> 
+
+            </div>
         </div>
     </body>
 </html>
