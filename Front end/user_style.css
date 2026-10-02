@@ -7,6 +7,12 @@ text-align: center;
     color: #1E293B;
 }
 
+h2 {
+text-align: center;
+    margin-bottom: 8px;
+    color: #1E293B;
+}
+
 p{
     text-align: center;
 }
@@ -24,6 +30,10 @@ p{
 }
 
 .card a{
+    margin-top: auto;
+}
+
+button{
     margin-top: auto;
 }
 
