@@ -1,0 +1,45 @@
+body{
+    background-color: #2e290426;
+}
+h1 {
+text-align: center;
+    margin-bottom: 8px;
+    color: #1E293B;
+}
+
+h2 {
+text-align: center;
+    margin-bottom: 8px;
+    color: #1E293B;
+}
+
+p{
+    text-align: center;
+}
+
+.card{
+    background-color: white;
+    width: 400px;
+    padding: 40px;
+    margin: 100px auto;
+    border-radius: 10px;
+    min-height: 250px;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.card a{
+    margin-top: auto;
+}
+
+button{
+    margin-top: auto;
+}
+
+.container {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
