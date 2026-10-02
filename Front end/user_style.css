@@ -1,27 +1,33 @@
-body{
-    background-color: #2e290426;
-}
+/* ===========================================================
+   User screen layout - card grid used by the four user pages.
+
+   This file keeps the card layout Dakoda wrote. It is loaded
+   after style.css, so the rules here win where they overlap.
+   The only changes made during integration were to use the
+   shared colours and to let the cards wrap on a small screen.
+   =========================================================== */
+
 h1 {
-text-align: center;
+    text-align: center;
     margin-bottom: 8px;
-    color: #1E293B;
+    color: var(--ink);
 }
 
 h2 {
-text-align: center;
+    text-align: center;
     margin-bottom: 8px;
-    color: #1E293B;
+    color: var(--ink);
 }
 
-p{
+.container p {
     text-align: center;
 }
 
-.card{
-    background-color: white;
+.card {
+    background-color: var(--white);
     width: 400px;
     padding: 40px;
-    margin: 100px auto;
+    margin: 0 auto;
     border-radius: 10px;
     min-height: 250px;
 
@@ -29,11 +35,11 @@ p{
     flex-direction: column;
 }
 
-.card a{
+.card a {
     margin-top: auto;
 }
 
-button{
+.container button {
     margin-top: auto;
 }
 
@@ -41,5 +47,24 @@ button{
     display: flex;
     gap: 20px;
     justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 24px;
 }
 
+/* a card that holds a table needs more room than 400px */
+.card.wide {
+    width: 100%;
+    max-width: 900px;
+    min-height: 0;
+}
+
+/* the big number shown inside a user card */
+.card .big-number {
+    text-align: center;
+    font-size: 40px;
+}
+
+/* keep the cards readable on a phone */
+@media (max-width: 480px) {
+    .card { width: 100%; padding: 24px; }
+}

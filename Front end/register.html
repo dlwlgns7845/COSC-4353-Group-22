@@ -1,40 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="register.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - QueueSmart</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="validation.css">
 </head>
 <body>
-    <div class="register-card">
-    <h1>Register</h1>
 
-    <form action="login.html">
-        <label for="email">Email:</label>
-        <input
-            type="email"
-            id="email"
-            name="email"
-            required
-        >
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1>Create an account</h1>
 
-        <br><br>
+      <form id="registerForm" novalidate data-redirect="login.html">
 
-        <label for="password">Password:</label>
-        <input
-            type="password"
-            id="password"
-            name="password"
-            minlength="8"
-            required
-        >
+        <div class="field">
+          <label for="fullName">Full name</label>
+          <input type="text" id="fullName" name="fullName" required
+                 maxlength="60" data-label="Full name" placeholder="Jihoon Lee">
+          <small class="validation-message" id="fullNameError"></small>
+        </div>
 
-        <br><br>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required
+                 autocomplete="email" data-label="Email"
+                 placeholder="student@uh.edu">
+          <small class="validation-message" id="emailError"></small>
+        </div>
 
-        <button class= "register-button"
-        type="submit">Register</button>
-    </form>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required
+                 minlength="8" autocomplete="new-password" data-label="Password">
+          <p class="hint">At least 8 characters.</p>
+          <small class="validation-message" id="passwordError"></small>
+        </div>
+
+        <button type="submit">Create account</button>
+
+        <div class="form-success" id="formSuccess" role="status"></div>
+      </form>
+
+      <div class="auth-links">
+        <p>Already have an account? <a href="login.html">Log in</a></p>
+      </div>
     </div>
+  </div>
+
+  <script src="validation.js"></script>
+
 </body>
 </html>

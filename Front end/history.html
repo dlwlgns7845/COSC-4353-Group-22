@@ -4,17 +4,111 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>History</title>
-        <link rel = "stylesheet" href = "user_style.css" >
+        <link rel = "stylesheet" href = "style.css">
+        <link rel = "stylesheet" href = "user_style.css">
     </head>
 
     <body>
-        <div class = "card">
-            <h2>Past Queues Joined</h2>
+        <div class="navbar" id="navbar"></div>
 
-            <p>Date: October 10, 2026</p>
-            <p>Service Name: Software Design</p>
-            <P>Outcome: Served</P>
+        <h1>My History</h1>
 
+        <div class = "container">
+            <div class = "card wide">
+                <h2>Filter by date</h2>
+
+                <div class="card-row">
+                    <div class="field" style="flex:1">
+                        <label for="fromDate">From date</label>
+                        <input type="date" id="fromDate">
+                    </div>
+                    <div class="field" style="flex:1">
+                        <label for="toDate">To date</label>
+                        <input type="date" id="toDate">
+                    </div>
+                </div>
+
+                <p class="error" id="dateError">The from date must not be after the to date.</p>
+
+                <div>
+                    <button id="applyButton">Apply filter</button>
+                    <button class="gray" id="clearButton">Clear</button>
+                </div>
+            </div>
         </div>
+
+        <div class = "container">
+            <div class = "card wide">
+                <h2>Past Queues Joined</h2>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Service Name</th>
+                            <th>Wait time</th>
+                            <th>Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyRows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <script src="data.js"></script>
+        <script src="nav.js"></script>
+        <script>
+            renderNav("history", "user");
+
+            /* draw the table from the rows that passed the filter */
+            function showHistory(rows) {
+                let html = "";
+
+                if (rows.length === 0) {
+                    html = '<tr><td colspan="4" class="empty">No records found.</td></tr>';
+                }
+
+                rows.forEach(function (row) {
+                    html += "<tr>" +
+                              "<td>" + row.date + "</td>" +
+                              "<td>" + row.serviceName + "</td>" +
+                              "<td>" + row.waitMinutes + " min</td>" +
+                              "<td>" + row.outcome + "</td>" +
+                            "</tr>";
+                });
+
+                document.getElementById("historyRows").innerHTML = html;
+            }
+
+            document.getElementById("applyButton").addEventListener("click", function () {
+                const from = document.getElementById("fromDate").value;
+                const to = document.getElementById("toDate").value;
+                const error = document.getElementById("dateError");
+
+                /* validation: when both dates are filled, from must come first */
+                if (from && to && from > to) {
+                    error.style.display = "block";
+                    return;
+                }
+                error.style.display = "none";
+
+                const rows = getHistory().filter(function (row) {
+                    if (from && row.date < from) { return false; }
+                    if (to && row.date > to) { return false; }
+                    return true;
+                });
+
+                showHistory(rows);
+            });
+
+            document.getElementById("clearButton").addEventListener("click", function () {
+                document.getElementById("fromDate").value = "";
+                document.getElementById("toDate").value = "";
+                document.getElementById("dateError").style.display = "none";
+                showHistory(getHistory());
+            });
+
+            showHistory(getHistory());
+        </script>
     </body>
 </html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - QueueSmart</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="navbar" id="navbar"></div>
+
+  <div class="page">
+    <h1>Admin dashboard</h1>
+    <p class="subtitle">All services, how many people are waiting, and quick actions.</p>
+
+    <!-- three summary numbers at the top -->
+    <div class="card-row">
+      <div class="card">
+        <div class="hint">Open services</div>
+        <div class="big-number" id="openCount">0</div>
+      </div>
+      <div class="card">
+        <div class="hint">People waiting</div>
+        <div class="big-number" id="waitingCount">0</div>
+      </div>
+      <div class="card">
+        <div class="hint">Longest queue</div>
+        <div class="big-number" id="longestQueue">-</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Services</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Priority</th>
+            <th>Duration</th>
+            <th>Queue length</th>
+            <th>Status</th>
+            <th>Quick actions</th>
+          </tr>
+        </thead>
+        <tbody id="serviceRows"></tbody>
+      </table>
+      <a class="button" href="service-management.html">Add a new service</a>
+      <button class="gray" onclick="resetDemoData()">Reset demo data</button>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    renderNav("admin", "admin");
+
+    /* --- the three numbers at the top --- */
+    function showSummary() {
+      const services = getServices();
+      const queue = getQueue();
+
+      const openServices = services.filter(function (s) { return s.open; });
+
+      /* find the service with the most people waiting */
+      let longestName = "-";
+      let longestCount = 0;
+      services.forEach(function (service) {
+        const count = getQueueForService(service.id).length;
+        if (count > longestCount) {
+          longestCount = count;
+          longestName = service.name;
+        }
+      });
+
+      document.getElementById("openCount").textContent = openServices.length;
+      document.getElementById("waitingCount").textContent = queue.length;
+      document.getElementById("longestQueue").textContent =
+        (longestCount === 0) ? "-" : longestCount;
+    }
+
+    /* --- the service table --- */
+    function showServices() {
+      const services = getServices();
+      let html = "";
+
+      services.forEach(function (service) {
+        const queueLength = getQueueForService(service.id).length;
+
+        const statusBadge = service.open
+          ? '<span class="badge open">Open</span>'
+          : '<span class="badge closed">Closed</span>';
+
+        /* the quick action button says Close when open, and Open when closed */
+        const toggleLabel = service.open ? "Close queue" : "Open queue";
+
+        html += '<tr>' +
+                  '<td>' + service.name + '</td>' +
+                  '<td><span class="badge ' + service.priority + '">' + service.priority + '</span></td>' +
+                  '<td>' + service.duration + ' min</td>' +
+                  '<td>' + queueLength + '</td>' +
+                  '<td>' + statusBadge + '</td>' +
+                  '<td>' +
+                    '<button class="small gray" onclick="toggleOpen(' + service.id + ')">' + toggleLabel + '</button> ' +
+                    '<a class="button small" href="queue-management.html?service=' + service.id + '">View queue</a>' +
+                  '</td>' +
+                '</tr>';
+      });
+
+      document.getElementById("serviceRows").innerHTML = html;
+    }
+
+    /* --- quick action: open or close a queue --- */
+    function toggleOpen(serviceId) {
+      const services = getServices();
+
+      services.forEach(function (service) {
+        if (service.id === serviceId) {
+          service.open = !service.open;          // flip true / false
+          addNotification(service.name + " is now " + (service.open ? "open" : "closed") + ".", "status", "Service status changed");
+        }
+      });
+
+      setServices(services);
+      showSummary();
+      showServices();
+    }
+
+    showSummary();
+    showServices();
+  </script>
+
+</body>
+</html>

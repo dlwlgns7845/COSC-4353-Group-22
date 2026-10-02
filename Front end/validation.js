@@ -401,6 +401,19 @@ forms.forEach(form => {
 
             }
 
+
+            /*
+                If the form has a data-redirect attribute,
+                go to that page after the check passes.
+            */
+
+            if (form.dataset.redirect) {
+
+                window.location.href =
+                    form.dataset.redirect;
+
+            }
+
         }
     );
 

@@ -4,32 +4,159 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Join Queue</title>
+        <link rel = "stylesheet" href = "style.css">
         <link rel = "stylesheet" href = "user_style.css">
     </head>
 
     <body>
+        <div class="navbar" id="navbar"></div>
+
         <h1>Join Queue</h1>
 
         <div class = "container">
             <div class = "card">
                 <h2>Select a Service</h2>
 
-                <select>
-                    <option>Choose a Service</option>
-                    <option>Active Service 1</option>
-                    <option>Active Service 2</option>
-                    <option>Active Service 3</option>
-                </select>
+                <!-- novalidate turns off the browser pop-up so we can
+                     show our own red message under the dropdown -->
+                <form id="joinForm" novalidate>
+                    <select id="service">
+                        <option value="">Choose a Service</option>
+                    </select>
+                    <p class="error" id="serviceError">Please choose a service.</p>
 
-                <button>Join Queue</button>
-                <button>Leave Queue</button>
+                    <p id="currentQueue"></p>
+
+                    <button type="submit" id="joinButton">Join Queue</button>
+                    <button type="button" class="red" id="leaveButton">Leave Queue</button>
+                </form>
             </div>
 
             <div class = "card">
                 <h2>View estimated wait time</h2>
-                <p>EWT: 30 minutes</p>
-            </div>
 
+                <p id="serviceDescription"></p>
+                <p>EWT: <strong id="waitTime">-</strong></p>
+                <p>People waiting: <strong id="waitingCount">-</strong></p>
+                <p>Minutes per person: <strong id="duration">-</strong></p>
+            </div>
         </div>
+
+        <script src="data.js"></script>
+        <script src="nav.js"></script>
+        <script>
+            renderNav("join", "user");
+
+            /* ---------- put the open services in the dropdown ---------- */
+            function fillServices() {
+                const select = document.getElementById("service");
+
+                getServices().forEach(function (service) {
+                    /* a closed service cannot be joined */
+                    if (!service.open) { return; }
+
+                    const option = document.createElement("option");
+                    option.value = service.id;
+                    option.textContent = service.name + " (" + service.priority + " priority)";
+                    select.appendChild(option);
+                });
+
+                /* pick the first one so the wait time is visible right away */
+                if (select.options.length > 1) { select.selectedIndex = 1; }
+            }
+
+            /* ---------- show the wait time of the chosen service ---------- */
+            function showWaitTime() {
+                const serviceId = Number(document.getElementById("service").value);
+
+                if (!serviceId) {
+                    document.getElementById("waitTime").textContent = "-";
+                    document.getElementById("waitingCount").textContent = "-";
+                    document.getElementById("duration").textContent = "-";
+                    document.getElementById("serviceDescription").textContent = "";
+                    return;
+                }
+
+                const service = findService(serviceId);
+                const waiting = getQueueForService(serviceId).length;
+
+                document.getElementById("serviceDescription").textContent = service.description;
+                document.getElementById("waitTime").textContent = estimateWait(serviceId, waiting) + " minutes";
+                document.getElementById("waitingCount").textContent = waiting;
+                document.getElementById("duration").textContent = service.duration;
+            }
+
+            /* ---------- join ---------- */
+            function joinQueue(serviceId) {
+                /* a user can only wait in one queue, so leave the old one */
+                let queue = getQueue().filter(function (e) {
+                    return e.userName !== CURRENT_USER.name;
+                });
+
+                const now = new Date();
+                const time = String(now.getHours()).padStart(2, "0") + ":" +
+                             String(now.getMinutes()).padStart(2, "0");
+
+                queue.push({
+                    id: Date.now(),
+                    serviceId: serviceId,
+                    userName: CURRENT_USER.name,
+                    joinedAt: time,
+                    status: "waiting"
+                });
+
+                setQueue(queue);
+                addNotification("You joined the queue for " + findService(serviceId).name + ".",
+                                "queue", "Queue joined");
+                window.location.href = "queue_status.html";
+            }
+
+            /* ---------- leave ---------- */
+            function leaveQueue() {
+                const myEntry = getMyEntry();
+
+                if (!myEntry) {
+                    alert("You are not in a queue right now.");
+                    return;
+                }
+
+                const service = findService(myEntry.serviceId);
+                setQueue(getQueue().filter(function (e) { return e.id !== myEntry.id; }));
+                addNotification("You left the queue for " + service.name + ".", "queue", "Queue left");
+                location.reload();
+            }
+
+            /* ---------- form submit, with validation ---------- */
+            document.getElementById("joinForm").addEventListener("submit", function (event) {
+                event.preventDefault();
+
+                const serviceId = Number(document.getElementById("service").value);
+                const error = document.getElementById("serviceError");
+
+                /* validation: a service must be chosen */
+                if (!serviceId) {
+                    error.style.display = "block";
+                    return;
+                }
+
+                error.style.display = "none";
+                joinQueue(serviceId);
+            });
+
+            document.getElementById("service").addEventListener("change", showWaitTime);
+            document.getElementById("leaveButton").addEventListener("click", leaveQueue);
+
+            /* ---------- when the page opens ---------- */
+            fillServices();
+            showWaitTime();
+
+            const myEntry = getMyEntry();
+            if (myEntry) {
+                document.getElementById("currentQueue").textContent =
+                    "You are waiting for " + findService(myEntry.serviceId).name +
+                    " since " + myEntry.joinedAt + ".";
+                document.getElementById("joinButton").textContent = "Switch Queue";
+            }
+        </script>
     </body>
 </html>

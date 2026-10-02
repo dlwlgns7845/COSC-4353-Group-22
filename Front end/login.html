@@ -1,41 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="login.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - QueueSmart</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="validation.css">
 </head>
 <body>
-    <div class="login-card">
-    <h1>Login</h1>
 
-    <form>
-        <label for="email">Email:</label>
-        <input
-            type="email"
-            id="email"
-            name="email"
-            required
-        >
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1>QueueSmart</h1>
 
-        <br><br>
+      <!-- novalidate turns off the browser pop-up, validation.js shows our
+           own messages instead. data-redirect is where we go when it passes. -->
+      <form id="loginForm" novalidate data-redirect="dashboard.html">
 
-        <label for="password">Password:</label>
-        <input
-            type="password"
-            id="password"
-            name="password"
-            minlength="8"
-            required
-        >
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required
+                 autocomplete="email" data-label="Email"
+                 placeholder="student@uh.edu">
+          <small class="validation-message" id="emailError"></small>
+        </div>
 
-        <br><br>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required
+                 minlength="8" autocomplete="current-password" data-label="Password">
+          <small class="validation-message" id="passwordError"></small>
+        </div>
 
-        <button class= "login-button"
-        type="submit">Login</button>
-    </form>
-    <p>Don't have an account? <a href="register.html">Sign up</a></p>
+        <button type="submit">Log in</button>
+
+        <div class="form-success" id="formSuccess" role="status"></div>
+      </form>
+
+      <div class="auth-links">
+        <p>Don't have an account? <a href="register.html">Sign up</a></p>
+        <p><a href="admin-dashboard.html">Log in as administrator</a></p>
+      </div>
     </div>
+  </div>
+
+  <script src="validation.js"></script>
+
 </body>
 </html>

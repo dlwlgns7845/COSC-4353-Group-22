@@ -4,40 +4,104 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>My Dashboard</title>
+        <link rel = "stylesheet" href = "style.css">
         <link rel = "stylesheet" href = "user_style.css">
     </head>
-    
+
     <body>
+        <!-- the navigation bar is filled in by nav.js -->
+        <div class="navbar" id="navbar"></div>
+
         <h1>My Dashboard</h1>
 
         <div class = "container">
             <div class = "card">
                 <h2>Queue Status</h2>
 
-                <p>Position: </p>
-                <p>Wait time: </p>
+                <p>Position: <strong id="position">-</strong></p>
+                <p>Wait time: <strong id="waitTime">-</strong></p>
+                <p id="serviceName"></p>
 
-                <a href = "queue_status.html">Queue Status</a>
+                <a class="button" href = "queue_status.html">Queue Status</a>
             </div>
-        
+
             <div class = "card">
                 <h2>Active Services Available</h2>
 
-                <p>Active service 1</p>
-                <p>Active service 2</p>
-                <p>Active service 3</p>
+                <div id="serviceList"></div>
 
-                <a href = "join_queue.html">Join Queue</a> 
+                <a class="button" href = "join_queue.html">Join Queue</a>
             </div>
 
             <div class = "card">
                 <h2>Notification Summary</h2>
 
-                <p>you have 2 notifications</p>
+                <p id="notificationCount">you have 0 notifications</p>
+                <div id="notificationList"></div>
 
-                <a href = "history.html">History</a> 
-
+                <a class="button" href = "history.html">History</a>
             </div>
         </div>
+
+        <script src="data.js"></script>
+        <script src="nav.js"></script>
+        <script>
+            renderNav("dashboard", "user");
+
+            /* ---------- card 1: where am I in the queue ---------- */
+            function showMyQueue() {
+                const myEntry = getMyEntry();
+
+                /* not waiting anywhere */
+                if (!myEntry) {
+                    document.getElementById("position").textContent = "not in a queue";
+                    document.getElementById("waitTime").textContent = "-";
+                    return;
+                }
+
+                const service = findService(myEntry.serviceId);
+                const line = getQueueForService(myEntry.serviceId);
+                const position = line.findIndex(function (e) { return e.id === myEntry.id; }) + 1;
+
+                document.getElementById("position").textContent = position;
+                document.getElementById("waitTime").textContent =
+                    estimateWait(myEntry.serviceId, position - 1) + " minutes";
+                document.getElementById("serviceName").textContent =
+                    service.name + " (" + myEntry.status.replace("-", " ") + ")";
+            }
+
+            /* ---------- card 2: which services are open ---------- */
+            function showServices() {
+                let html = "";
+
+                getServices().forEach(function (service) {
+                    if (!service.open) { return; }
+
+                    const waiting = getQueueForService(service.id).length;
+                    html += "<p>" + service.name +
+                            ' <span class="badge ' + service.priority + '">' + service.priority + "</span>" +
+                            "<br><small>" + waiting + " waiting</small></p>";
+                });
+
+                document.getElementById("serviceList").innerHTML = html;
+            }
+
+            /* ---------- card 3: notifications ---------- */
+            function showNotifications() {
+                const unread = countUnread();
+                document.getElementById("notificationCount").textContent =
+                    "you have " + unread + " unread notification" + (unread === 1 ? "" : "s");
+
+                let html = "";
+                getNotifications().slice(0, 2).forEach(function (n) {
+                    html += "<p><small>" + n.text + "</small></p>";
+                });
+                document.getElementById("notificationList").innerHTML = html;
+            }
+
+            showMyQueue();
+            showServices();
+            showNotifications();
+        </script>
     </body>
 </html>

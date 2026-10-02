@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Queue Management - QueueSmart</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="navbar" id="navbar"></div>
+
+  <div class="page">
+    <h1>Queue management</h1>
+    <p class="subtitle">Pick a service, then move people up or down, remove them, or serve the next one.</p>
+
+    <div class="card">
+      <div class="field">
+        <label for="service">Service</label>
+        <select id="service"></select>
+      </div>
+
+      <div class="card-row">
+        <div class="card">
+          <div class="hint">People waiting</div>
+          <div class="big-number" id="waitingCount">0</div>
+        </div>
+        <div class="card">
+          <div class="hint">Average wait</div>
+          <div class="big-number" id="averageWait">0 min</div>
+        </div>
+        <div class="card">
+          <div class="hint">Next in line</div>
+          <div class="big-number" id="nextPerson">-</div>
+        </div>
+      </div>
+
+      <button id="serveButton">Serve next user</button>
+    </div>
+
+    <div class="card">
+      <h2>Queue</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Joined</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="queueRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    renderNav("queues", "admin");
+
+    const STATUS_TEXT = {
+      "waiting":      "Waiting",
+      "almost-ready": "Almost ready",
+      "served":       "Served"
+    };
+
+    /* The admin dashboard can link here with ?service=1 in the address,
+       so we read that number and select it in the dropdown. */
+    function getServiceIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return Number(params.get("service"));
+    }
+
+    function fillServiceOptions() {
+      const select = document.getElementById("service");
+      const wanted = getServiceIdFromUrl();
+      let html = "";
+
+      getServices().forEach(function (service) {
+        html += '<option value="' + service.id + '">' + service.name + "</option>";
+      });
+
+      select.innerHTML = html;
+
+      if (wanted) {
+        select.value = wanted;
+      }
+    }
+
+    function selectedServiceId() {
+      return Number(document.getElementById("service").value);
+    }
+
+    /* ---------- draw the queue ---------- */
+    function showQueue() {
+      const serviceId = selectedServiceId();
+      const line = getQueueForService(serviceId);
+      const service = findService(serviceId);
+
+      /* the three numbers at the top */
+      document.getElementById("waitingCount").textContent = line.length;
+      document.getElementById("averageWait").textContent =
+        (line.length === 0 ? 0 : Math.round(line.length * service.duration / 2)) + " min";
+      document.getElementById("nextPerson").textContent =
+        (line.length === 0) ? "-" : line[0].userName;
+
+      /* the table */
+      let html = "";
+
+      if (line.length === 0) {
+        html = '<tr><td colspan="5" class="empty">Nobody is waiting for this service.</td></tr>';
+      }
+
+      line.forEach(function (entry, index) {
+        const isFirst = (index === 0);
+        const isLast = (index === line.length - 1);
+
+        html += "<tr>" +
+                  "<td>" + (index + 1) + "</td>" +
+                  "<td>" + entry.userName + "</td>" +
+                  "<td>" + entry.joinedAt + "</td>" +
+                  '<td><span class="badge ' + entry.status + '">' + STATUS_TEXT[entry.status] + "</span></td>" +
+                  "<td>" +
+                    '<button class="small gray" onclick="moveUp(' + entry.id + ')"' +
+                      (isFirst ? " disabled" : "") + ">Up</button> " +
+                    '<button class="small gray" onclick="moveDown(' + entry.id + ')"' +
+                      (isLast ? " disabled" : "") + ">Down</button> " +
+                    '<button class="small red" onclick="removeUser(' + entry.id + ')">Remove</button>' +
+                  "</td>" +
+                "</tr>";
+      });
+
+      document.getElementById("queueRows").innerHTML = html;
+    }
+
+    /* ---------- reorder ----------
+       The order comes from joinedAt, so to move someone up we swap
+       their joinedAt time with the person above them. The UI only,
+       exactly what the assignment asks for. */
+    function swapTimes(entryId, direction) {
+      const line = getQueueForService(selectedServiceId());
+      const index = line.findIndex(function (e) { return e.id === entryId; });
+      const otherIndex = index + direction;
+
+      /* already at the top or the bottom */
+      if (otherIndex < 0 || otherIndex >= line.length) { return; }
+
+      const queue = getQueue();
+      const me = queue.find(function (e) { return e.id === line[index].id; });
+      const other = queue.find(function (e) { return e.id === line[otherIndex].id; });
+
+      const temp = me.joinedAt;
+      me.joinedAt = other.joinedAt;
+      other.joinedAt = temp;
+
+      setQueue(queue);
+      showQueue();
+    }
+
+    function moveUp(entryId)   { swapTimes(entryId, -1); }
+    function moveDown(entryId) { swapTimes(entryId, 1); }
+
+    /* ---------- remove one person ---------- */
+    function removeUser(entryId) {
+      const entry = getQueue().find(function (e) { return e.id === entryId; });
+      if (!confirm("Remove " + entry.userName + " from this queue?")) { return; }
+
+      setQueue(getQueue().filter(function (e) { return e.id !== entryId; }));
+      addNotification(entry.userName + " was removed from the queue.", "queue", "Removed from queue");
+      showQueue();
+    }
+
+    /* ---------- serve the next user ----------
+       This is a simulation: the first person becomes served and is
+       moved into the history, and the new first person becomes
+       "almost ready" so the status change is visible. */
+    document.getElementById("serveButton").addEventListener("click", function () {
+      const serviceId = selectedServiceId();
+      const line = getQueueForService(serviceId);
+
+      if (line.length === 0) {
+        alert("Nobody is waiting for this service.");
+        return;
+      }
+
+      const service = findService(serviceId);
+      const firstPerson = line[0];
+
+      /* 1. take the first person out of the queue */
+      setQueue(getQueue().filter(function (e) { return e.id !== firstPerson.id; }));
+
+      /* 2. write a history record for them */
+      const history = getHistory();
+      history.unshift({
+        id: Date.now(),
+        date: new Date().toISOString().slice(0, 10),   // ex: 2026-10-01
+        serviceName: service.name,
+        waitMinutes: service.duration,
+        outcome: "Served"
+      });
+      setHistory(history);
+
+      /* 3. the next person is now almost ready */
+      const queue = getQueue();
+      const newLine = getQueueForService(serviceId);
+      if (newLine.length > 0) {
+        queue.forEach(function (e) {
+          if (e.id === newLine[0].id) { e.status = "almost-ready"; }
+        });
+        setQueue(queue);
+        addNotification(newLine[0].userName + ", your turn is coming up for " + service.name + ".", "status", "Almost ready");
+      }
+
+      addNotification(firstPerson.userName + " was served at " + service.name + ".", "status", "Served");
+      showQueue();
+    });
+
+    document.getElementById("service").addEventListener("change", showQueue);
+
+    fillServiceOptions();
+    showQueue();
+  </script>
+
+</body>
+</html>

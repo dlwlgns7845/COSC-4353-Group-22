@@ -1,0 +1,333 @@
+/* ===========================================================
+   QueueSmart - shared styles for every page
+   Keep all page styling here so all screens look the same.
+   =========================================================== */
+
+:root {
+  --blue: #00aaff;
+  --blue-dark: #0077b6;
+  --ink: #1e293b;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --bg: #f1f5f9;
+  --white: #ffffff;
+  --green: #16a34a;
+  --orange: #ea580c;
+  --red: #dc2626;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ---------- top navigation bar ---------- */
+
+.navbar {
+  background-color: var(--white);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.navbar .logo {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--blue-dark);
+  margin-right: 10px;
+}
+
+.navbar a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.navbar a:hover { background-color: var(--bg); }
+
+/* the page we are currently on is highlighted */
+.navbar a.active {
+  color: var(--white);
+  background-color: var(--blue);
+}
+
+.navbar .spacer { margin-left: auto; }
+
+/* ---------- page layout ---------- */
+
+.page {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 0 20px;
+}
+
+h1 { font-size: 26px; margin: 0 0 6px 0; }
+h2 { font-size: 18px; margin: 0 0 12px 0; }
+
+.subtitle { color: var(--muted); margin: 0 0 24px 0; }
+
+/* ---------- card ---------- */
+
+.card {
+  background-color: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.card-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.card-row .card { flex: 1; min-width: 220px; }
+
+.big-number {
+  font-size: 34px;
+  font-weight: bold;
+  color: var(--blue-dark);
+  margin: 6px 0;
+}
+
+/* ---------- table ---------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+th { color: var(--muted); font-size: 13px; text-transform: uppercase; }
+
+/* ---------- buttons ---------- */
+
+/* <button> and <a class="button"> must look exactly the same,
+   because they sit next to each other in the same table row. */
+button, .button {
+  background-color: var(--blue);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 20px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+button:hover, .button:hover { background-color: var(--blue-dark); }
+
+button.gray, .button.gray { background-color: var(--muted); }
+button.red, .button.red { background-color: var(--red); }
+
+/* a disabled Up / Down button at the top or bottom of the queue */
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.small, .button.small { padding: 6px 10px; font-size: 13px; line-height: 17px; }
+
+/* ---------- form ---------- */
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+input, select, textarea {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.field { margin-bottom: 16px; }
+
+/* small gray hint under an input, ex: "0 / 100 characters" */
+.hint { font-size: 12px; color: var(--muted); }
+
+/* red message shown when validation fails */
+.error {
+  color: var(--red);
+  font-size: 13px;
+  margin-top: 4px;
+  display: none;
+}
+
+/* ---------- badges ---------- */
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.badge.high   { background-color: #fee2e2; color: var(--red); }
+.badge.medium { background-color: #ffedd5; color: var(--orange); }
+.badge.low    { background-color: #dcfce7; color: var(--green); }
+.badge.open   { background-color: #dcfce7; color: var(--green); }
+.badge.closed { background-color: #e2e8f0; color: var(--muted); }
+
+.badge.waiting      { background-color: #e0f2fe; color: var(--blue-dark); }
+.badge.almost-ready { background-color: #ffedd5; color: var(--orange); }
+.badge.served       { background-color: #dcfce7; color: var(--green); }
+
+/* ---------- notification list ---------- */
+
+.notification {
+  border-left: 4px solid var(--blue);
+  background-color: #f8fafc;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  border-radius: 0 6px 6px 0;
+}
+
+.notification .time { font-size: 12px; color: var(--muted); }
+
+.empty { color: var(--muted); padding: 16px 0; }
+
+/* ---------- notification bell in the navigation bar ---------- */
+
+.bell-wrap { position: relative; }
+
+.bell-button {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  line-height: 0;
+  position: relative;
+}
+
+.bell-button:hover { background-color: var(--bg); }
+
+.bell-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* the red number on the bell */
+.bell-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  background-color: var(--red);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 18px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  padding: 0 5px;
+}
+
+/* the panel that opens under the bell */
+.bell-panel {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  width: 340px;
+  max-height: 420px;
+  overflow-y: auto;
+  background-color: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(20, 29, 38, .14);
+  z-index: 20;
+  text-align: left;
+}
+
+.bell-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.link-button {
+  background: none;
+  color: var(--blue-dark);
+  padding: 0;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.link-button:hover { background: none; text-decoration: underline; }
+
+.bell-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* an unread one gets a light blue background and a blue bar */
+.bell-item.unread {
+  background-color: #f0f9ff;
+  border-left: 3px solid var(--blue);
+}
+
+.bell-title { font-weight: bold; margin-top: 6px; }
+.bell-text { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.bell-item .time { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+/* the two notification types */
+.badge.queue  { background-color: #e0f2fe; color: var(--blue-dark); }
+.badge.status { background-color: #dcfce7; color: var(--green); }
+
+/* on a narrow screen the panel must not go off the edge */
+@media (max-width: 420px) {
+  .bell-panel { width: calc(100vw - 36px); right: -8px; }
+}
+
+/* ---------- login and registration pages ---------- */
+
+.auth-page {
+  max-width: 420px;
+  margin: 80px auto;
+  padding: 0 20px;
+}
+
+.auth-card {
+  background-color: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: var(--shadow);
+}
+
+.auth-card h1 { text-align: center; margin-bottom: 24px; }
+.auth-card button { width: 100%; margin-top: 8px; }
+.auth-links { text-align: center; margin-top: 18px; font-size: 14px; }
+.auth-links p { margin: 6px 0; }
+
+.auth-links a { color: var(--blue-dark); text-decoration: none; font-weight: bold; }
+.auth-links a:hover { text-decoration: underline; }

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Management - QueueSmart</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="navbar" id="navbar"></div>
+
+  <div class="page">
+    <h1>Service management</h1>
+    <p class="subtitle">Create a new service, or edit one that already exists.</p>
+
+    <!-- ========= the form =========
+         All of the required validations live here:
+         name is required and max 100 characters,
+         description is required,
+         duration is a number and required,
+         priority is low / medium / high.
+    -->
+    <div class="card">
+      <h2 id="formTitle">Create a service</h2>
+
+      <!-- novalidate turns off the browser pop-up so we can show our own messages -->
+      <form id="serviceForm" novalidate>
+
+        <input type="hidden" id="serviceId" value="">
+
+        <div class="field">
+          <label for="name">Service name *</label>
+          <input type="text" id="name" maxlength="100" placeholder="Ex: Financial Aid">
+          <p class="hint"><span id="nameCount">0</span> / 100 characters</p>
+          <p class="error" id="nameError"></p>
+        </div>
+
+        <div class="field">
+          <label for="description">Description *</label>
+          <textarea id="description" rows="3" maxlength="300"
+                    placeholder="What does this service help with?"></textarea>
+          <p class="error" id="descriptionError"></p>
+        </div>
+
+        <div class="card-row">
+          <div class="field" style="flex:1">
+            <label for="duration">Expected duration (minutes) *</label>
+            <input type="number" id="duration" min="1" max="240" placeholder="Ex: 15">
+            <p class="error" id="durationError"></p>
+          </div>
+
+          <div class="field" style="flex:1">
+            <label for="priority">Priority level *</label>
+            <select id="priority">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" id="submitButton">Create service</button>
+        <button type="button" class="gray" id="cancelButton" onclick="resetForm()" style="display:none">Cancel</button>
+      </form>
+    </div>
+
+    <!-- ========= the list of services ========= -->
+    <div class="card">
+      <h2>All services</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Duration</th>
+            <th>Priority</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="serviceRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    renderNav("services", "admin");
+
+    /* =======================================================
+       VALIDATION
+       Returns true when every field is fine.
+       Each rule shows its own red message under the field.
+       ======================================================= */
+    function validateForm() {
+      let isValid = true;
+
+      const name = document.getElementById("name").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const duration = document.getElementById("duration").value;
+
+      /* --- service name: required, max 100 characters --- */
+      const nameError = document.getElementById("nameError");
+      if (name === "") {
+        nameError.textContent = "Service name is required.";
+        nameError.style.display = "block";
+        isValid = false;
+      } else if (name.length > 100) {
+        nameError.textContent = "Service name cannot be longer than 100 characters.";
+        nameError.style.display = "block";
+        isValid = false;
+      } else {
+        nameError.style.display = "none";
+      }
+
+      /* --- description: required --- */
+      const descriptionError = document.getElementById("descriptionError");
+      if (description === "") {
+        descriptionError.textContent = "Description is required.";
+        descriptionError.style.display = "block";
+        isValid = false;
+      } else {
+        descriptionError.style.display = "none";
+      }
+
+      /* --- duration: required, and a number from 1 to 240 --- */
+      const durationError = document.getElementById("durationError");
+      if (duration === "") {
+        durationError.textContent = "Expected duration is required.";
+        durationError.style.display = "block";
+        isValid = false;
+      } else if (Number(duration) < 1 || Number(duration) > 240) {
+        durationError.textContent = "Duration must be between 1 and 240 minutes.";
+        durationError.style.display = "block";
+        isValid = false;
+      } else {
+        durationError.style.display = "none";
+      }
+
+      return isValid;
+    }
+
+    /* =======================================================
+       SAVE - create a new service, or update an existing one
+       ======================================================= */
+    document.getElementById("serviceForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      if (!validateForm()) {
+        return;                   // stop here, the red messages are showing
+      }
+
+      const services = getServices();
+      const editingId = document.getElementById("serviceId").value;
+
+      const values = {
+        name:        document.getElementById("name").value.trim(),
+        description: document.getElementById("description").value.trim(),
+        duration:    Number(document.getElementById("duration").value),
+        priority:    document.getElementById("priority").value
+      };
+
+      if (editingId === "") {
+        /* create: give it a new id and add it to the list */
+        values.id = Date.now();
+        values.open = true;
+        services.push(values);
+        addNotification("New service " + values.name + " was created.", "status", "Service created");
+      } else {
+        /* edit: find the service and copy the new values into it */
+        services.forEach(function (service) {
+          if (service.id === Number(editingId)) {
+            service.name = values.name;
+            service.description = values.description;
+            service.duration = values.duration;
+            service.priority = values.priority;
+          }
+        });
+        addNotification("Service " + values.name + " was updated.", "status", "Service updated");
+      }
+
+      setServices(services);
+      resetForm();
+      showServices();
+    });
+
+    /* =======================================================
+       EDIT and DELETE
+       ======================================================= */
+    function editService(serviceId) {
+      const service = findService(serviceId);
+
+      document.getElementById("serviceId").value = service.id;
+      document.getElementById("name").value = service.name;
+      document.getElementById("description").value = service.description;
+      document.getElementById("duration").value = service.duration;
+      document.getElementById("priority").value = service.priority;
+
+      document.getElementById("formTitle").textContent = "Edit service";
+      document.getElementById("submitButton").textContent = "Save changes";
+      document.getElementById("cancelButton").style.display = "inline-block";
+
+      updateNameCount();
+      window.scrollTo(0, 0);
+    }
+
+    function deleteService(serviceId) {
+      const service = findService(serviceId);
+
+      /* ask first, because this also removes the people waiting */
+      if (!confirm("Delete " + service.name + "? People waiting for it will be removed too.")) {
+        return;
+      }
+
+      setServices(getServices().filter(function (s) { return s.id !== serviceId; }));
+      setQueue(getQueue().filter(function (e) { return e.serviceId !== serviceId; }));
+
+      addNotification("Service " + service.name + " was deleted.", "status", "Service deleted");
+      resetForm();
+      showServices();
+    }
+
+    /* put the form back into create mode */
+    function resetForm() {
+      document.getElementById("serviceForm").reset();
+      document.getElementById("serviceId").value = "";
+      document.getElementById("formTitle").textContent = "Create a service";
+      document.getElementById("submitButton").textContent = "Create service";
+      document.getElementById("cancelButton").style.display = "none";
+
+      /* hide any red messages that were left over */
+      document.querySelectorAll(".error").forEach(function (box) {
+        box.style.display = "none";
+      });
+
+      updateNameCount();
+    }
+
+    /* =======================================================
+       THE TABLE
+       ======================================================= */
+    function showServices() {
+      let html = "";
+
+      getServices().forEach(function (service) {
+        html += "<tr>" +
+                  "<td>" + service.name + "</td>" +
+                  "<td>" + service.description + "</td>" +
+                  "<td>" + service.duration + " min</td>" +
+                  '<td><span class="badge ' + service.priority + '">' + service.priority + "</span></td>" +
+                  "<td>" +
+                    '<button class="small gray" onclick="editService(' + service.id + ')">Edit</button> ' +
+                    '<button class="small red" onclick="deleteService(' + service.id + ')">Delete</button>' +
+                  "</td>" +
+                "</tr>";
+      });
+
+      document.getElementById("serviceRows").innerHTML = html;
+    }
+
+    /* live character counter under the name field */
+    function updateNameCount() {
+      document.getElementById("nameCount").textContent =
+        document.getElementById("name").value.length;
+    }
+
+    document.getElementById("name").addEventListener("input", updateNameCount);
+
+    showServices();
+  </script>
+
+</body>
+</html>
