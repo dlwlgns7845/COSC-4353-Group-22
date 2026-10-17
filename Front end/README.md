@@ -32,7 +32,7 @@ away, and the same pages can call a real API with `fetch` in Assignment 3.
 
 | File | What it does | Built by |
 |---|---|---|
-| `style.css` | Base styling shared by every screen | Jihoon |
+| `style.css` | Base styling shared by every screen | Jihoon | Alan
 | `user_style.css` | Card layout used by the four user screens | Dakoda |
 | `data.js` | Mock data and the save / load helpers | Jihoon |
 | `nav.js` | Navigation bar, notification bell, notification lists | Jihoon, bell design from Maahum |
