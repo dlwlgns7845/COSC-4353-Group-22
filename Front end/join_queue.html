@@ -44,119 +44,234 @@
 
         <script src="data.js"></script>
         <script src="nav.js"></script>
-        <script>
-            renderNav("join", "user");
+        
+<script>
+    renderNav("join", "user");
 
-            /* ---------- put the open services in the dropdown ---------- */
-            function fillServices() {
-                const select = document.getElementById("service");
+    const API_URL = "http://localhost:3000/api";
 
-                getServices().forEach(function (service) {
-                    /* a closed service cannot be joined */
-                    if (!service.open) { return; }
+    let services = [];
+    let queue = [];
 
-                    const option = document.createElement("option");
-                    option.value = service.id;
-                    option.textContent = service.name + " (" + service.priority + " priority)";
-                    select.appendChild(option);
-                });
-
-                /* pick the first one so the wait time is visible right away */
-                if (select.options.length > 1) { select.selectedIndex = 1; }
+    // Send requests to the backend.
+    async function apiRequest(path, options = {}) {
+        const response = await fetch(API_URL + path, {
+            ...options,
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
             }
+        });
 
-            /* ---------- show the wait time of the chosen service ---------- */
-            function showWaitTime() {
-                const serviceId = Number(document.getElementById("service").value);
+        const data = await response.json();
 
-                if (!serviceId) {
-                    document.getElementById("waitTime").textContent = "-";
-                    document.getElementById("waitingCount").textContent = "-";
-                    document.getElementById("duration").textContent = "-";
-                    document.getElementById("serviceDescription").textContent = "";
-                    return;
-                }
+        if (!response.ok) {
+            throw new Error(data.error || "Request failed.");
+        }
 
-                const service = findService(serviceId);
-                const waiting = getQueueForService(serviceId).length;
+        return data;
+    }
 
-                document.getElementById("serviceDescription").textContent = service.description;
-                document.getElementById("waitTime").textContent = estimateWait(serviceId, waiting) + " minutes";
-                document.getElementById("waitingCount").textContent = waiting;
-                document.getElementById("duration").textContent = service.duration;
-            }
+    // Load services and queue entries from the backend.
+    async function loadData() {
+        try {
+            services = await apiRequest("/services");
+            queue = await apiRequest("/queue");
 
-            /* ---------- join ---------- */
-            function joinQueue(serviceId) {
-                /* a user can only wait in one queue, so leave the old one */
-                let queue = getQueue().filter(function (e) {
-                    return e.userName !== CURRENT_USER.name;
-                });
-
-                const now = new Date();
-                const time = String(now.getHours()).padStart(2, "0") + ":" +
-                             String(now.getMinutes()).padStart(2, "0");
-
-                queue.push({
-                    id: Date.now(),
-                    serviceId: serviceId,
-                    userName: CURRENT_USER.name,
-                    joinedAt: time,
-                    status: "waiting"
-                });
-
-                setQueue(queue);
-                addNotification("You joined the queue for " + findService(serviceId).name + ".",
-                                "queue", "Queue joined");
-                window.location.href = "queue_status.html";
-            }
-
-            /* ---------- leave ---------- */
-            function leaveQueue() {
-                const myEntry = getMyEntry();
-
-                if (!myEntry) {
-                    alert("You are not in a queue right now.");
-                    return;
-                }
-
-                const service = findService(myEntry.serviceId);
-                setQueue(getQueue().filter(function (e) { return e.id !== myEntry.id; }));
-                addNotification("You left the queue for " + service.name + ".", "queue", "Queue left");
-                location.reload();
-            }
-
-            /* ---------- form submit, with validation ---------- */
-            document.getElementById("joinForm").addEventListener("submit", function (event) {
-                event.preventDefault();
-
-                const serviceId = Number(document.getElementById("service").value);
-                const error = document.getElementById("serviceError");
-
-                /* validation: a service must be chosen */
-                if (!serviceId) {
-                    error.style.display = "block";
-                    return;
-                }
-
-                error.style.display = "none";
-                joinQueue(serviceId);
-            });
-
-            document.getElementById("service").addEventListener("change", showWaitTime);
-            document.getElementById("leaveButton").addEventListener("click", leaveQueue);
-
-            /* ---------- when the page opens ---------- */
             fillServices();
             showWaitTime();
+            showCurrentQueue();
+        } catch (error) {
+            console.error(error);
+            document.getElementById("serviceDescription").textContent =
+                "Could not load services. Please try again.";
+        }
+    }
 
-            const myEntry = getMyEntry();
-            if (myEntry) {
-                document.getElementById("currentQueue").textContent =
-                    "You are waiting for " + findService(myEntry.serviceId).name +
-                    " since " + myEntry.joinedAt + ".";
-                document.getElementById("joinButton").textContent = "Switch Queue";
+    // Populate the dropdown using real backend service IDs.
+    function fillServices() {
+        const select = document.getElementById("service");
+        select.innerHTML = '<option value="">Choose a Service</option>';
+
+        services.forEach(function (service) {
+            // The backend service list does not currently provide an "open" field.
+            const option = document.createElement("option");
+            option.value = service.id;
+            option.textContent =
+                service.name + " (" + service.priority + " priority)";
+            select.appendChild(option);
+        });
+
+        if (select.options.length > 1) {
+            select.selectedIndex = 1;
+        }
+    }
+
+    function getSelectedService() {
+        const serviceId = Number(document.getElementById("service").value);
+        return services.find(function (service) {
+            return service.id === serviceId;
+        });
+    }
+
+    function showWaitTime() {
+        const service = getSelectedService();
+
+        if (!service) {
+            document.getElementById("waitTime").textContent = "-";
+            document.getElementById("waitingCount").textContent = "-";
+            document.getElementById("duration").textContent = "-";
+            document.getElementById("serviceDescription").textContent = "";
+            return;
+        }
+
+        const waiting = queue.filter(function (entry) {
+            return Number(entry.serviceId) === Number(service.id) &&
+                   entry.status === "waiting";
+        }).length;
+
+        document.getElementById("serviceDescription").textContent =
+            service.description;
+        document.getElementById("waitingCount").textContent = waiting;
+        document.getElementById("duration").textContent = service.duration;
+
+        // Simple estimate: people ahead multiplied by service duration.
+        document.getElementById("waitTime").textContent =
+            (waiting * service.duration) + " minutes";
+    }
+
+    function showCurrentQueue() {
+        const myEntry = queue.find(function (entry) {
+            return entry.userName === CURRENT_USER.name &&
+                   entry.status === "waiting";
+        });
+
+        const message = document.getElementById("currentQueue");
+
+        if (!myEntry) {
+            message.textContent = "";
+            document.getElementById("joinButton").textContent = "Join Queue";
+            return;
+        }
+
+        const service = services.find(function (item) {
+            return Number(item.id) === Number(myEntry.serviceId);
+        });
+
+        message.textContent = service
+            ? "You are waiting for " + service.name +
+              " since " + new Date(myEntry.joinedAt).toLocaleTimeString()
+            : "You are currently waiting in a queue.";
+
+        document.getElementById("joinButton").textContent = "Switch Queue";
+    }
+
+    // Join the selected service through the backend API.
+    async function joinQueue(serviceId) {
+        const button = document.getElementById("joinButton");
+        button.disabled = true;
+
+        try {
+            // Find any existing queue entry for this user.
+            const existingEntry = queue.find(function (entry) {
+                return entry.userName === CURRENT_USER.name &&
+                       entry.status === "waiting";
+            });
+
+            // Leave the previous queue before switching.
+            if (existingEntry) {
+                await apiRequest("/queue/" + existingEntry.id, {
+                    method: "DELETE"
+                });
             }
-        </script>
+
+            await apiRequest("/queue", {
+                method: "POST",
+                body: JSON.stringify({
+                    serviceId: serviceId,
+                    userName: CURRENT_USER.name,
+                    priority: "medium"
+                })
+            });
+
+            addNotification(
+                "You joined the queue for " +
+                getSelectedService().name + ".",
+                "queue",
+                "Queue joined"
+            );
+
+            window.location.href = "queue_status.html";
+        } catch (error) {
+            alert("Could not join the queue: " + error.message);
+            await loadData();
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    // Leave the queue through the backend API.
+    async function leaveQueue() {
+        try {
+            const myEntry = queue.find(function (entry) {
+                return entry.userName === CURRENT_USER.name &&
+                       entry.status === "waiting";
+            });
+
+            if (!myEntry) {
+                alert("You are not in a queue right now.");
+                return;
+            }
+
+            await apiRequest("/queue/" + myEntry.id, {
+                method: "DELETE"
+            });
+
+            addNotification(
+                "You left the queue.",
+                "queue",
+                "Queue left"
+            );
+
+            await loadData();
+        } catch (error) {
+            alert("Could not leave the queue: " + error.message);
+        }
+    }
+
+    // Validate the form before joining.
+    document.getElementById("joinForm").addEventListener(
+        "submit",
+        async function (event) {
+            event.preventDefault();
+
+            const serviceId =
+                Number(document.getElementById("service").value);
+            const error = document.getElementById("serviceError");
+
+            if (!serviceId) {
+                error.style.display = "block";
+                return;
+            }
+
+            error.style.display = "none";
+            await joinQueue(serviceId);
+        }
+    );
+
+    document.getElementById("service").addEventListener(
+        "change",
+        showWaitTime
+    );
+
+    document.getElementById("leaveButton").addEventListener(
+        "click",
+        leaveQueue
+    );
+
+    // Start the page.
+    loadData();
+</script>
+
     </body>
 </html>

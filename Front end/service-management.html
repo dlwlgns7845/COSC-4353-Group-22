@@ -103,82 +103,155 @@
     /* =======================================================
        SAVE - create a new service, or update an existing one
        ======================================================= */
-    document.getElementById("serviceForm").addEventListener("submit", function (event) {
-      event.preventDefault();
 
-      if (!validateForm(this)) {
-        return;                   // stop here, the red messages are showing
-      }
+       let servicesCache = [];
 
-      const services = getServices();
-      const editingId = document.getElementById("serviceId").value;
+    
+document.getElementById("serviceForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
 
-      const values = {
-        name:        document.getElementById("name").value.trim(),
+    if (!validateForm(this)) {
+        return;
+    }
+
+    const editingId = document.getElementById("serviceId").value;
+
+    const values = {
+        name: document.getElementById("name").value.trim(),
         description: document.getElementById("description").value.trim(),
-        duration:    Number(document.getElementById("duration").value),
-        priority:    document.getElementById("priority").value
-      };
+        duration: Number(document.getElementById("duration").value),
+        priority: document.getElementById("priority").value
+    };
 
-      if (editingId === "") {
-        /* create: give it a new id and add it to the list */
-        values.id = Date.now();
-        values.open = true;
-        services.push(values);
-        addNotification("New service " + values.name + " was created.", "status", "Service created");
-      } else {
-        /* edit: find the service and copy the new values into it */
-        services.forEach(function (service) {
-          if (service.id === Number(editingId)) {
-            service.name = values.name;
-            service.description = values.description;
-            service.duration = values.duration;
-            service.priority = values.priority;
-          }
-        });
-        addNotification("Service " + values.name + " was updated.", "status", "Service updated");
-      }
+    try {
+        let response;
 
-      setServices(services);
-      resetForm();
-      showServices();
-    });
+        if (editingId === "") {
+            // Send a new service to the backend
+            response = await fetch("http://localhost:3000/api/services", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(values)
+            });
+        } else {
+            // Send changes to the backend
+            response = await fetch(
+                "http://localhost:3000/api/services/" + editingId,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(values)
+                }
+            );
+        }
+
+        if (!response.ok) {
+            throw new Error("Could not save service");
+        }
+
+        const savedService = await response.json();
+
+        if (editingId === "") {
+            addNotification(
+                "New service " + savedService.name + " was created.",
+                "status",
+                "Service created"
+            );
+        } else {
+            addNotification(
+                "Service " + savedService.name + " was updated.",
+                "status",
+                "Service updated"
+            );
+        }
+
+        resetForm();
+        await showServices();
+
+    } catch (error) {
+        console.error("Error saving service:", error);
+        alert("Could not save the service. Make sure the backend is running.");
+    }
+});
+
 
     /* =======================================================
        EDIT and DELETE
        ======================================================= */
-    function editService(serviceId) {
-      const service = findService(serviceId);
+    
+function editService(serviceId) {
+    const service = servicesCache.find(function (item) {
+        return item.id === Number(serviceId);
+    });
 
-      document.getElementById("serviceId").value = service.id;
-      document.getElementById("name").value = service.name;
-      document.getElementById("description").value = service.description;
-      document.getElementById("duration").value = service.duration;
-      document.getElementById("priority").value = service.priority;
-
-      document.getElementById("formTitle").textContent = "Edit service";
-      document.getElementById("submitButton").textContent = "Save changes";
-      document.getElementById("cancelButton").style.display = "inline-block";
-
-      updateNameCount();
-      window.scrollTo(0, 0);
-    }
-
-    function deleteService(serviceId) {
-      const service = findService(serviceId);
-
-      /* ask first, because this also removes the people waiting */
-      if (!confirm("Delete " + service.name + "? People waiting for it will be removed too.")) {
+    if (!service) {
+        alert("Service not found. Please refresh the page.");
         return;
-      }
-
-      setServices(getServices().filter(function (s) { return s.id !== serviceId; }));
-      setQueue(getQueue().filter(function (e) { return e.serviceId !== serviceId; }));
-
-      addNotification("Service " + service.name + " was deleted.", "status", "Service deleted");
-      resetForm();
-      showServices();
     }
+
+    document.getElementById("serviceId").value = service.id;
+    document.getElementById("name").value = service.name;
+    document.getElementById("description").value = service.description;
+    document.getElementById("duration").value = service.duration;
+    document.getElementById("priority").value = service.priority;
+
+    document.getElementById("formTitle").textContent = "Edit service";
+    document.getElementById("submitButton").textContent = "Save changes";
+    document.getElementById("cancelButton").style.display = "inline-block";
+
+    updateNameCount();
+    window.scrollTo(0, 0);
+}
+
+
+    
+async function deleteService(serviceId) {
+    const service = servicesCache.find(function (item) {
+        return item.id === Number(serviceId);
+    });
+
+    if (!service) {
+        alert("Service not found.");
+        return;
+    }
+
+    if (!confirm("Delete " + service.name + "? People waiting for it will be removed too.")) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            "http://localhost:3000/api/services/" + serviceId,
+            {
+                method: "DELETE"
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Could not delete service");
+        }
+
+      
+
+        addNotification(
+            "Service " + service.name + " was deleted.",
+            "status",
+            "Service deleted"
+        );
+
+        resetForm();
+        await showServices();
+
+    } catch (error) {
+        console.error("Error deleting service:", error);
+        alert("Could not delete service. Check the backend.");
+    }
+}
+
 
     /* put the form back into create mode */
     function resetForm() {
@@ -202,24 +275,39 @@
     /* =======================================================
        THE TABLE
        ======================================================= */
-    function showServices() {
-      let html = "";
 
-      getServices().forEach(function (service) {
-        html += "<tr>" +
-                  "<td>" + service.name + "</td>" +
-                  "<td>" + service.description + "</td>" +
-                  "<td>" + service.duration + " min</td>" +
-                  '<td><span class="badge ' + service.priority + '">' + service.priority + "</span></td>" +
-                  "<td>" +
-                    '<button class="small gray" onclick="editService(' + service.id + ')">Edit</button> ' +
-                    '<button class="small red" onclick="deleteService(' + service.id + ')">Delete</button>' +
-                  "</td>" +
-                "</tr>";
-      });
+    async function showServices() {
+  try {
+    const response = await fetch("http://localhost:3000/api/services");
 
-      document.getElementById("serviceRows").innerHTML = html;
+    if (!response.ok) {
+      throw new Error("Could not load services");
     }
+
+    servicesCache = await response.json();
+
+    let html = "";
+
+    servicesCache.forEach(function (service) {
+      html += "<tr>" +
+                "<td>" + service.name + "</td>" +
+                "<td>" + service.description + "</td>" +
+                "<td>" + service.duration + " min</td>" +
+                '<td><span class="badge ' + service.priority + '">' + service.priority + "</span></td>" +
+                "<td>" +
+                  '<button class="small gray" onclick="editService(' + service.id + ')">Edit</button> ' +
+                  '<button class="small red" onclick="deleteService(' + service.id + ')">Delete</button>' +
+                "</td>" +
+              "</tr>";
+    });
+
+    document.getElementById("serviceRows").innerHTML = html;
+  } catch (error) {
+    console.error("Error loading services:", error);
+    document.getElementById("serviceRows").innerHTML =
+      '<tr><td colspan="5">Could not load services. Check that the backend is running.</td></tr>';
+  }
+}
 
     /* live character counter under the name field */
     function updateNameCount() {
