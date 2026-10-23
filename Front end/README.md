@@ -38,6 +38,8 @@ away, and the same pages can call a real API with `fetch` in Assignment 3.
 | `nav.js` | Navigation bar, notification bell, notification lists | Jihoon, bell design from Maahum |
 | `validation.js` | Reusable form validation driven by HTML attributes | Maahum |
 | `validation.css` | Styling for the validation messages | Maahum |
+| `login.js` | log in request to back end from the front end | Alan |
+| `registeration.js` | saving registration from front end to back end | Alan |
 
 ## Mock data
 
