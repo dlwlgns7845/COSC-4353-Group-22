@@ -1,2 +1,4 @@
 screenshots/
 STUDY-NOTES.md
+node_modules/
+coverage/

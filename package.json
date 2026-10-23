@@ -1,0 +1,26 @@
+{
+  "name": "queuesmart",
+  "version": "1.0.0",
+  "description": "QueueSmart - COSC 4353 Group 22. Back end for Assignment 3.",
+  "scripts": {
+    "start": "node \"back end/server.js\"",
+    "test": "jest",
+    "coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "back end/**/*.js",
+      "!back end/server.js"
+    ]
+  }
+}
