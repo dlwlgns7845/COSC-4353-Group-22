@@ -15,7 +15,7 @@
 
       <!-- novalidate turns off the browser pop-up, validation.js shows our
            own messages instead. data-redirect is where we go when it passes. -->
-      <form id="loginForm" novalidate data-redirect="dashboard.html">
+      <form id="loginForm" novalidate>
 
         <div class="field">
           <label for="email">Email</label>
@@ -34,7 +34,6 @@
 
         <button type="submit">Log in</button>
 
-        <div class="form-success" id="formSuccess" role="status"></div>
       </form>
 
       <div class="auth-links">
@@ -45,6 +44,7 @@
   </div>
 
   <script src="validation.js"></script>
+  <script src="login.js"></script>
 
 </body>
 </html>
