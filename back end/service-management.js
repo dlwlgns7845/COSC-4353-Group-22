@@ -27,6 +27,46 @@ let services = [
     }
 ];
 
+// Check the service fields sent by the client.
+// Returns an error message, or null when everything is fine.
+function checkServiceInput(body) {
+    const { name, description, duration, priority } = body || {};
+
+    if (typeof name !== "string" || !name.trim()) {
+        return "Service name is required";
+    }
+
+    if (name.trim().length > 100) {
+        return "Service name cannot be longer than 100 characters";
+    }
+
+    if (typeof description !== "string" || !description.trim()) {
+        return "Description is required";
+    }
+
+    if (description.trim().length > 500) {
+        return "Description cannot be longer than 500 characters";
+    }
+
+    const minutes = Number(duration);
+
+    if (duration === undefined || duration === null || duration === "") {
+        return "Expected duration is required";
+    }
+
+    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 240) {
+        return "Expected duration must be a number between 1 and 240";
+    }
+
+    const allowedPriorities = ["low", "medium", "high"];
+
+    if (!allowedPriorities.includes(priority)) {
+        return "Priority must be low, medium, or high";
+    }
+
+    return null;
+}
+
 // Homepage route
 app.get("/", (req, res) => {
     res.send("Queue Management Backend is running!");
@@ -42,6 +82,12 @@ app.get("/api/services", (req, res) => {
 
 //Add services
 app.post("/api/services", (req, res) => {
+    const problem = checkServiceInput(req.body);
+
+    if (problem) {
+        return res.status(400).json({ error: problem });
+    }
+
     const { name, description, duration, priority } = req.body;
 
     const newService = {
@@ -67,6 +113,12 @@ app.put("/api/services/:id", (req, res) => {
         return res.status(404).json({
             error: "Service not found"
         });
+    }
+
+    const problem = checkServiceInput(req.body);
+
+    if (problem) {
+        return res.status(400).json({ error: problem });
     }
 
     const { name, description, duration, priority } = req.body;
