@@ -1,123 +1,301 @@
+
 <!DOCTYPE html>
-<html lang = "en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Queue Status</title>
-        <link rel = "stylesheet" href = "style.css">
-        <link rel = "stylesheet" href = "user_style.css">
-    </head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Queue Status</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="user_style.css">
+</head>
+<style>
+    #statusBadge[hidden],
+    #leaveButton[hidden] {
+        display: none !important;
+    }
+</style>
+<body>
+    <div class="navbar" id="navbar"></div>
 
-    <body>
-        <div class="navbar" id="navbar"></div>
+    <h1 id="serviceTitle">Queue Status</h1>
 
-        <h1 id="serviceTitle">Queue Status</h1>
-
-        <div class = "container">
-            <div class = "card">
-                <h2>Current position in Queue</h2>
-
-                <p>Position:</p>
-                <div class="big-number" id="position">-</div>
-            </div>
-
-            <div class = "card">
-                <h2>Estimated Wait Time</h2>
-
-                <p>EWT:</p>
-                <div class="big-number" id="waitTime">-</div>
-            </div>
-
-            <div class = "card">
-                <h2>Status Update</h2>
-
-                <p id="statusText">Waiting</p>
-                <p><span class="badge waiting" id="statusBadge">Waiting</span></p>
-                <button class="red" id="leaveButton">Leave Queue</button>
-            </div>
+    <div class="container">
+        <div class="card">
+            <h2>Current position in Queue</h2>
+            <p>Position:</p>
+            <div class="big-number" id="position">-</div>
         </div>
 
-        <div class = "container">
-            <div class = "card wide">
-                <h2>People in this queue</h2>
-                <table>
-                    <thead>
-                        <tr><th>#</th><th>Name</th><th>Joined</th><th>Status</th></tr>
-                    </thead>
-                    <tbody id="queueRows"></tbody>
-                </table>
-            </div>
+        <div class="card">
+            <h2>Estimated Wait Time</h2>
+            <p>EWT:</p>
+            <div class="big-number" id="waitTime">-</div>
         </div>
 
-        <script src="data.js"></script>
-        <script src="nav.js"></script>
-        <script>
-            renderNav("status", "user");
+        <div class="card">
+            <h2>Status Update</h2>
+            <p id="statusText">Loading queue...</p>
+            <p>
+                <span class="badge waiting" id="statusBadge">
+                    Waiting
+                </span>
+            </p>
+            <button class="red" id="leaveButton" hidden>
+                Leave Queue
+            </button>
+        </div>
+    </div>
 
-            /* the three status values the assignment asks for */
-            const STATUS_TEXT = {
-                "waiting":      "Waiting",
-                "almost-ready": "Almost ready",
-                "served":       "Served"
-            };
+    <div class="container">
+        <div class="card wide">
+            <h2>People in this queue</h2>
 
-            function showStatus() {
-                const myEntry = getMyEntry();
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Joined</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="queueRows"></tbody>
+            </table>
+        </div>
+    </div>
 
-                /* not in a queue: show empty values and hide the leave button */
+    <script src="data.js"></script>
+    <script src="nav.js"></script>
+
+    <script>
+        renderNav("status", "user");
+
+        const API_BASE = "http://localhost:3000/api";
+        let currentEntryId = null;
+        let isRefreshing = false;
+
+        // Make requests to the existing backend.
+        async function apiRequest(path, options = {}) {
+            const response = await fetch(API_BASE + path, options);
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error || `Request failed (${response.status})`
+                );
+            }
+
+            return data;
+        }
+
+        // Display an empty queue or an error.
+        function showEmpty(message) {
+            currentEntryId = null;
+
+            document.getElementById("serviceTitle").textContent =
+                "Queue Status";
+
+            document.getElementById("position").textContent = "-";
+            document.getElementById("waitTime").textContent = "-";
+            document.getElementById("statusText").textContent = message;
+
+            document.getElementById("statusBadge").hidden = true;
+            document.getElementById("leaveButton").hidden = true;
+
+            const tbody = document.getElementById("queueRows");
+            tbody.replaceChildren();
+
+            const row = tbody.insertRow();
+            const cell = row.insertCell();
+
+            cell.colSpan = 4;
+            cell.className = "empty";
+            cell.textContent = message;
+        }
+
+        // Safely add text to a table cell.
+        function addCell(row, text) {
+            const cell = row.insertCell();
+            cell.textContent = String(text);
+            return cell;
+        }
+
+        // Display the queue returned by the backend.
+        function displayQueue(entries, myEntryId, serviceId) {
+            const tbody = document.getElementById("queueRows");
+            tbody.replaceChildren();
+
+            const line = entries.filter(entry =>
+                Number(entry.serviceId) === Number(serviceId) &&
+                entry.status === "waiting"
+            );
+
+            line.forEach((entry, index) => {
+                const row = tbody.insertRow();
+                const isMe = entry.id === myEntryId;
+
+                addCell(row, index + 1);
+
+                const nameCell = addCell(
+                    row,
+                    entry.userName + (isMe ? " (you)" : "")
+                );
+
+                if (isMe) {
+                    nameCell.style.fontWeight = "bold";
+                }
+
+                addCell(
+                    row,
+                    new Date(entry.joinedAt).toLocaleTimeString()
+                );
+
+                const statusCell = row.insertCell();
+                const badge = document.createElement("span");
+
+                const status = index < 2
+                    ? "almost-ready"
+                    : "waiting";
+
+                badge.className = "badge " + status;
+                badge.textContent = status === "almost-ready"
+                    ? "Almost ready"
+                    : "Waiting";
+
+                statusCell.appendChild(badge);
+            });
+        }
+
+        // Load live queue data and backend-estimated wait time.
+        async function showStatus() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+
+            try {
+                const [services, queue] = await Promise.all([
+                    apiRequest("/services"),
+                    apiRequest("/queue")
+                ]);
+
+                // Prefer a saved queue entry ID when available.
+                const savedId = Number(
+                    localStorage.getItem("queuesmart_activeEntryId")
+                );
+
+                let myEntry = queue.find(entry =>
+                    entry.id === savedId &&
+                    entry.userName === CURRENT_USER.name &&
+                    entry.status === "waiting"
+                );
+
+                // Compatibility with the existing Join Queue page.
                 if (!myEntry) {
-                    document.getElementById("position").textContent = "-";
-                    document.getElementById("waitTime").textContent = "-";
-                    document.getElementById("statusText").textContent = "You are not in a queue.";
-                    document.getElementById("statusBadge").style.display = "none";
-                    document.getElementById("leaveButton").style.display = "none";
-                    document.getElementById("queueRows").innerHTML =
-                        '<tr><td colspan="4" class="empty">Nothing to show.</td></tr>';
+                    myEntry = queue.find(entry =>
+                        entry.userName === CURRENT_USER.name &&
+                        entry.status === "waiting"
+                    );
+                }
+
+                if (!myEntry) {
+                    localStorage.removeItem("queuesmart_activeEntryId");
+                    showEmpty("You are not currently in a queue.");
                     return;
                 }
 
-                const service = findService(myEntry.serviceId);
-                const line = getQueueForService(myEntry.serviceId);
-                const position = line.findIndex(function (e) { return e.id === myEntry.id; }) + 1;
+                currentEntryId = myEntry.id;
 
-                document.getElementById("serviceTitle").textContent = service.name;
-                document.getElementById("position").textContent = position;
+                const service = services.find(item =>
+                    Number(item.id) === Number(myEntry.serviceId)
+                );
+
+                if (!service) {
+                    throw new Error("Service not found.");
+                }
+
+                // Module 4: Get the estimate from the backend.
+                const waitData = await apiRequest(
+                    `/queue/${myEntry.id}/wait-time`
+                );
+
+                document.getElementById("serviceTitle").textContent =
+                    service.name;
+
+                document.getElementById("position").textContent =
+                    waitData.position;
+
                 document.getElementById("waitTime").textContent =
-                    estimateWait(myEntry.serviceId, position - 1) + " min";
+                    waitData.estimatedWaitMinutes + " min";
+
+                const isAlmostReady = waitData.position <= 2;
 
                 const badge = document.getElementById("statusBadge");
-                badge.textContent = STATUS_TEXT[myEntry.status];
-                badge.className = "badge " + myEntry.status;
-                document.getElementById("statusText").textContent = "You joined at " + myEntry.joinedAt + ".";
 
-                /* the whole line, so the user can see who is in front */
-                let html = "";
-                line.forEach(function (entry, index) {
-                    const isMe = (entry.userName === CURRENT_USER.name);
-                    const name = isMe ? "<strong>" + entry.userName + " (you)</strong>" : entry.userName;
+                badge.hidden = false;
+                badge.className = isAlmostReady
+                    ? "badge almost-ready"
+                    : "badge waiting";
 
-                    html += "<tr>" +
-                              "<td>" + (index + 1) + "</td>" +
-                              "<td>" + name + "</td>" +
-                              "<td>" + entry.joinedAt + "</td>" +
-                              '<td><span class="badge ' + entry.status + '">' +
-                                STATUS_TEXT[entry.status] + "</span></td>" +
-                            "</tr>";
-                });
-                document.getElementById("queueRows").innerHTML = html;
+                badge.textContent = isAlmostReady
+                    ? "Almost ready"
+                    : "Waiting";
+
+                document.getElementById("statusText").textContent =
+                    "You joined at " +
+                    new Date(myEntry.joinedAt).toLocaleTimeString() +
+                    ".";
+
+                document.getElementById("leaveButton").hidden = false;
+
+                displayQueue(queue, myEntry.id, myEntry.serviceId);
+
+                localStorage.setItem(
+                    "queuesmart_activeEntryId",
+                    String(myEntry.id)
+                );
+
+            } catch (error) {
+                console.error("Queue status error:", error);
+
+                showEmpty(
+                    "Unable to load queue status. Check the backend connection."
+                );
+            } finally {
+                isRefreshing = false;
             }
+        }
 
-            document.getElementById("leaveButton").addEventListener("click", function () {
-                const myEntry = getMyEntry();
-                if (!myEntry) { return; }
+        // Leave the queue through the backend.
+        document.getElementById("leaveButton")
+            .addEventListener("click", async function () {
 
-                const service = findService(myEntry.serviceId);
-                setQueue(getQueue().filter(function (e) { return e.id !== myEntry.id; }));
-                addNotification("You left the queue for " + service.name + ".", "queue", "Queue left");
-                location.reload();
+                if (currentEntryId === null) return;
+
+                const button = this;
+                button.disabled = true;
+
+                try {
+                    await apiRequest(
+                        `/queue/${currentEntryId}`,
+                        { method: "DELETE" }
+                    );
+
+                    localStorage.removeItem(
+                        "queuesmart_activeEntryId"
+                    );
+
+                    await showStatus();
+
+                } catch (error) {
+                    alert("Could not leave queue: " + error.message);
+                } finally {
+                    button.disabled = false;
+                }
             });
 
-            showStatus();
-        </script>
-    </body>
+        // Load initially and refresh when queue positions change.
+        showStatus();
+        setInterval(showStatus, 10000);
+    </script>
+</body>
 </html>

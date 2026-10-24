@@ -9,6 +9,10 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
+// Integrate service and queue APIs with the main server.
+// This includes wait-time estimation and notifications.
+const serviceApp = require("./service-management");
+app.use(serviceApp);
 
 const users = [];
 
