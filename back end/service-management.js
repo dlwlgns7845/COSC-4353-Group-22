@@ -102,7 +102,12 @@ app.delete("/api/services/:id", (req, res) => {
     });
 });
 
-// Start the server
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+// Start the server only when this file is run directly.
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server running at http://localhost:${PORT}`);
+    });
+}
+
+// Export the Express app for integration with the main server.
+module.exports = app;
