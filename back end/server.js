@@ -9,14 +9,6 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Integrate service and queue APIs with the main server.
-// This includes wait-time estimation and notifications.
-const serviceApp = require("./service-management");
-app.use(serviceApp);
-
-// Mount the history routes (module 6).
-const history = require("./history");
-app.use("/api/history", history.router);
 
 const users = [];
 
@@ -25,11 +17,18 @@ const users = [];
 app.post("/api/register", async (req, res) => {
     const { fullName, email, password } = req.body;
 
+    if (!email || !password || !fullName) {
+        return res.status(400).json({
+            message: "Email and password and full name are required."
+        });
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
     
     const existingUser = users.find(
         user => user.email === normalizedEmail
     );
+
 
     if (existingUser) {
         return res.status(409).json({
