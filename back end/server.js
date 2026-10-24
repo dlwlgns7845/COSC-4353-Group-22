@@ -9,6 +9,15 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
+// Integrate service and queue APIs with the main server.
+// This includes wait-time estimation and notifications.
+const serviceApp = require("./service-management");
+app.use(serviceApp);
+
+// Mount the history routes (module 6).
+const history = require("./history");
+app.use("/api/history", history.router);
+
 
 const users = [];
 
