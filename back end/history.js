@@ -119,6 +119,17 @@ function getRecordsBetween(userId, fromDate, toDate) {
   });
 }
 
+/* A few finished queues so the history screen has something to show.
+   The assignment allows mocked data, and the tests call clearAll()
+   first so these rows never affect them. */
+function seedDemoRecords() {
+  addRecord({ userId: "student@uh.edu", serviceName: "ID Card Services",  waitMinutes: 8,  outcome: "Served",     completedAt: "2026-10-18" });
+  addRecord({ userId: "student@uh.edu", serviceName: "Academic Advising", waitMinutes: 24, outcome: "Served",     completedAt: "2026-10-20" });
+  addRecord({ userId: "student@uh.edu", serviceName: "Financial Aid",     waitMinutes: 31, outcome: "Left queue", completedAt: "2026-10-22" });
+}
+
+seedDemoRecords();
+
 /* Used by the tests so each test starts from an empty list. */
 function clearAll() {
   records.length = 0;

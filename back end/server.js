@@ -14,6 +14,10 @@ app.use(express.json());
 const serviceApp = require("./service-management");
 app.use(serviceApp);
 
+// Mount the history routes (module 6).
+const history = require("./history");
+app.use("/api/history", history.router);
+
 const users = [];
 
 //registration

@@ -17,8 +17,8 @@
     <!-- three summary numbers at the top -->
     <div class="card-row">
       <div class="card">
-        <div class="hint">Open services</div>
-        <div class="big-number" id="openCount">0</div>
+        <div class="hint">Services</div>
+        <div class="big-number" id="serviceCount">0</div>
       </div>
       <div class="card">
         <div class="hint">People waiting</div>
@@ -39,14 +39,13 @@
             <th>Priority</th>
             <th>Duration</th>
             <th>Queue length</th>
-            <th>Status</th>
             <th>Quick actions</th>
           </tr>
         </thead>
         <tbody id="serviceRows"></tbody>
       </table>
+      <p class="error" id="loadError">Could not reach the server. Start it with npm start.</p>
       <a class="button" href="service-management.html">Add a new service</a>
-      <button class="gray" onclick="resetDemoData()">Reset demo data</button>
     </div>
   </div>
 
@@ -55,53 +54,63 @@
   <script>
     renderNav("admin", "admin");
 
+    const API_BASE = "http://localhost:3000";
+
+    /* Ask the backend for data. Same helper the other screens use. */
+    async function apiRequest(path, options = {}) {
+      const response = await fetch(API_BASE + path, options);
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed (${response.status})`);
+      }
+
+      return data;
+    }
+
+    /* Count how many people are waiting for one service. */
+    function countWaiting(queue, serviceId) {
+      return queue.filter(function (entry) {
+        return entry.serviceId === serviceId;
+      }).length;
+    }
+
     /* --- the three numbers at the top --- */
-    function showSummary() {
-      const services = getServices();
-      const queue = getQueue();
-
-      const openServices = services.filter(function (s) { return s.open; });
-
-      /* find the service with the most people waiting */
-      let longestName = "-";
+    function showSummary(services, queue) {
       let longestCount = 0;
+
       services.forEach(function (service) {
-        const count = getQueueForService(service.id).length;
+        const count = countWaiting(queue, service.id);
         if (count > longestCount) {
           longestCount = count;
-          longestName = service.name;
         }
       });
 
-      document.getElementById("openCount").textContent = openServices.length;
+      document.getElementById("serviceCount").textContent = services.length;
       document.getElementById("waitingCount").textContent = queue.length;
       document.getElementById("longestQueue").textContent =
         (longestCount === 0) ? "-" : longestCount;
     }
 
     /* --- the service table --- */
-    function showServices() {
-      const services = getServices();
+    function showServices(services, queue) {
       let html = "";
 
+      if (services.length === 0) {
+        html = '<tr><td colspan="5" class="empty">No services yet.</td></tr>';
+      }
+
       services.forEach(function (service) {
-        const queueLength = getQueueForService(service.id).length;
-
-        const statusBadge = service.open
-          ? '<span class="badge open">Open</span>'
-          : '<span class="badge closed">Closed</span>';
-
-        /* the quick action button says Close when open, and Open when closed */
-        const toggleLabel = service.open ? "Close queue" : "Open queue";
+        const queueLength = countWaiting(queue, service.id);
 
         html += '<tr>' +
                   '<td>' + service.name + '</td>' +
                   '<td><span class="badge ' + service.priority + '">' + service.priority + '</span></td>' +
                   '<td>' + service.duration + ' min</td>' +
                   '<td>' + queueLength + '</td>' +
-                  '<td>' + statusBadge + '</td>' +
                   '<td>' +
-                    '<button class="small gray" onclick="toggleOpen(' + service.id + ')">' + toggleLabel + '</button> ' +
+                    '<button class="small gray" onclick="serveNext(' + service.id + ')">Serve next</button> ' +
                     '<a class="button small" href="queue-management.html?service=' + service.id + '">View queue</a>' +
                   '</td>' +
                 '</tr>';
@@ -110,24 +119,40 @@
       document.getElementById("serviceRows").innerHTML = html;
     }
 
-    /* --- quick action: open or close a queue --- */
-    function toggleOpen(serviceId) {
-      const services = getServices();
+    /* --- quick action: serve the next person in one queue --- */
+    async function serveNext(serviceId) {
+      try {
+        const result = await apiRequest("/api/queue/serve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ serviceId: serviceId })
+        });
 
-      services.forEach(function (service) {
-        if (service.id === serviceId) {
-          service.open = !service.open;          // flip true / false
-          addNotification(service.name + " is now " + (service.open ? "open" : "closed") + ".", "status", "Service status changed");
-        }
-      });
-
-      setServices(services);
-      showSummary();
-      showServices();
+        alert(result.entry.userName + " was served.");
+        loadDashboard();
+      } catch (error) {
+        alert(error.message);
+      }
     }
 
-    showSummary();
-    showServices();
+    /* --- load everything from the backend --- */
+    async function loadDashboard() {
+      try {
+        const services = await apiRequest("/api/services");
+        const queue = await apiRequest("/api/queue");
+
+        document.getElementById("loadError").style.display = "none";
+
+        showSummary(services, queue);
+        showServices(services, queue);
+      } catch (error) {
+        document.getElementById("loadError").style.display = "block";
+        document.getElementById("serviceRows").innerHTML =
+          '<tr><td colspan="5" class="empty">No data.</td></tr>';
+      }
+    }
+
+    loadDashboard();
   </script>
 
 </body>

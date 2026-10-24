@@ -60,7 +60,24 @@
         <script>
             renderNav("history", "user");
 
-            /* draw the table from the rows that passed the filter */
+            const API_BASE = "http://localhost:3000";
+
+            /* Ask the backend for data. Same helper the other screens use. */
+            async function apiRequest(path) {
+                const response = await fetch(API_BASE + path, { cache: "no-store" });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error || `Request failed (${response.status})`
+                    );
+                }
+
+                return data;
+            }
+
+            /* Draw the table from whatever the backend sent back. */
             function showHistory(rows) {
                 let html = "";
 
@@ -70,7 +87,7 @@
 
                 rows.forEach(function (row) {
                     html += "<tr>" +
-                              "<td>" + row.date + "</td>" +
+                              "<td>" + row.completedAt + "</td>" +
                               "<td>" + row.serviceName + "</td>" +
                               "<td>" + row.waitMinutes + " min</td>" +
                               "<td>" + row.outcome + "</td>" +
@@ -78,6 +95,34 @@
                 });
 
                 document.getElementById("historyRows").innerHTML = html;
+            }
+
+            function showMessage(text) {
+                document.getElementById("historyRows").innerHTML =
+                    '<tr><td colspan="4" class="empty">' + text + "</td></tr>";
+            }
+
+            /* Load the history for the logged in user.
+               The dates are optional and go to the backend as a query. */
+            async function loadHistory(fromDate, toDate) {
+                const userId = encodeURIComponent(CURRENT_USER.email);
+
+                let path = "/api/history/" + userId;
+                const parts = [];
+
+                if (fromDate) { parts.push("from=" + fromDate); }
+                if (toDate) { parts.push("to=" + toDate); }
+
+                if (parts.length > 0) {
+                    path = path + "?" + parts.join("&");
+                }
+
+                try {
+                    const data = await apiRequest(path);
+                    showHistory(data.history);
+                } catch (error) {
+                    showMessage("Could not load your history. Is the server running?");
+                }
             }
 
             document.getElementById("applyButton").addEventListener("click", function () {
@@ -90,25 +135,19 @@
                     error.style.display = "block";
                     return;
                 }
+
                 error.style.display = "none";
-
-                const rows = getHistory().filter(function (row) {
-                    if (from && row.date < from) { return false; }
-                    if (to && row.date > to) { return false; }
-                    return true;
-                });
-
-                showHistory(rows);
+                loadHistory(from, to);
             });
 
             document.getElementById("clearButton").addEventListener("click", function () {
                 document.getElementById("fromDate").value = "";
                 document.getElementById("toDate").value = "";
                 document.getElementById("dateError").style.display = "none";
-                showHistory(getHistory());
+                loadHistory();
             });
 
-            showHistory(getHistory());
+            loadHistory();
         </script>
     </body>
 </html>
