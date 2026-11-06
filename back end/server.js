@@ -1,13 +1,39 @@
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
+const mysql = require("mysql2/promise");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// shared MySQL connection
+const db = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
+
+//Admin login information
+const Pass = await bcrypt.hash("12345678", 10);
+
+await db.execute(
+    "INSERT INTO Users (email, password, role) VALUES (?, ?, ?)",
+    ["123@user.com", Pass, "admin"]
+);
+
+await db.execute(
+    "INSERT INTO UserProfile (full_name, email) VALUES (?, ?)",
+    ["Alan Pourmo", "123@user.com"]
+);
 
 // Integrate service and queue APIs with the main server.
 // This includes wait-time estimation and notifications.
@@ -18,8 +44,6 @@ app.use(serviceApp);
 const history = require("./history");
 app.use("/api/history", history.router);
 
-
-const users = [];
 
 //registration
 
@@ -34,12 +58,13 @@ app.post("/api/register", async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
     
-    const existingUser = users.find(
-        user => user.email === normalizedEmail
+    const [existingUsers] = await db.execute(
+        "SELECT id FROM users WHERE email = ? LIMIT 1",
+        [normalizedEmail]
     );
 
 
-    if (existingUser) {
+    if (existingUser.length > 0) {
         return res.status(409).json({
             message: "Email is already registered."
         });
@@ -48,15 +73,15 @@ app.post("/api/register", async (req, res) => {
     
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = {
-        id: users.length + 1,
-        fullName: fullName.trim(),
-        email: normalizedEmail,
-        password: hashedPassword,
-        role: "user"
-    };
+    await db.execute(
+        "INSERT INTO users (email, password, role) VALUES ( ?, ?, ?)",
+        [normalizedEmail, hashedPassword, "user"]
+    );
 
-    users.push(newUser);
+    await db.execute(
+        "INSERT INTO UserProfile (full_name, email) VALUES (?, ?)",
+        [fullName,normalizedEmail]
+    );
 
     return res.status(201).json({
         message: "Registration successful."
@@ -79,21 +104,21 @@ app.post("/api/login", async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     
-    const user = users.find(
-        user => user.email === normalizedEmail
+    const [users] = await db.execute(
+        "SELECT id, email, password, role FROM users WHERE email = ? LIMIT 1",
+        [normalizedEmail]
     );
 
-    if (!user) {
+    if (users.length === 0) {
         return res.status(401).json({
             message: "Invalid email or password."
         });
     }
 
+    const user = users[0];
+
     
-    const passwordMatches = await bcrypt.compare(
-        password,
-        user.password
-    );
+    const passwordMatches = await bcrypt.compare(password, user.password);
 
     if (!passwordMatches) {
         return res.status(401).json({
