@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS QueueEntry (
 );
 
 -- Stores admin information
-INSERT INTO users (email, password, role)
+INSERT INTO Users (email, password, role)
 VALUES ('123@user.com', '$2b$10$PjDxp2Hsy9q8THdmyCAbKeTsMnyjU365jrQVM8HBwi16.mWAmobdq', 'admin');
 
 INSERT INTO UserProfile (full_name, email)
