@@ -47,7 +47,7 @@ app.post("/api/register", async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
     
     const [existingUser] = await db.execute(
-        "SELECT id FROM users WHERE email = ? LIMIT 1",
+        "SELECT id FROM Users WHERE email = ? LIMIT 1",
         [normalizedEmail]
     );
 
@@ -62,7 +62,7 @@ app.post("/api/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await db.execute(
-        "INSERT INTO users (email, password, role) VALUES ( ?, ?, ?)",
+        "INSERT INTO Users (email, password, role) VALUES ( ?, ?, ?)",
         [normalizedEmail, hashedPassword, "user"]
     );
 
@@ -93,7 +93,7 @@ app.post("/api/login", async (req, res) => {
 
     
     const [users] = await db.execute(
-        "SELECT id, email, password, role FROM users WHERE email = ? LIMIT 1",
+        "SELECT id, email, password, role FROM Users WHERE email = ? LIMIT 1",
         [normalizedEmail]
     );
 
