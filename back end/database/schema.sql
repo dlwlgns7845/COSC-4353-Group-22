@@ -62,3 +62,24 @@ CREATE TABLE IF NOT EXISTS QueueHistory (
 -- Both screens look rows up by email. InnoDB already builds an
 -- index for a foreign key column, so those lookups are covered
 -- and we do not add one by hand.
+
+-- =====================================================
+-- Assignment 4 - Part 3: Service Table
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS services (
+    service_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(500) NOT NULL,
+    expected_duration_minutes INT NOT NULL,
+    priority_level ENUM('low', 'medium', 'high') NOT NULL,
+
+    CONSTRAINT chk_service_duration
+        CHECK (expected_duration_minutes BETWEEN 1 AND 240),
+
+    CONSTRAINT chk_service_name
+        CHECK (CHAR_LENGTH(TRIM(name)) > 0),
+
+    CONSTRAINT chk_service_description
+        CHECK (CHAR_LENGTH(TRIM(description)) > 0)
+);
