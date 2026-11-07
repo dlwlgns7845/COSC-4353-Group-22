@@ -70,3 +70,43 @@ CREATE TABLE IF NOT EXISTS QueueHistory (
 -- Both screens look rows up by email. InnoDB already builds an
 -- index for a foreign key column, so those lookups are covered
 -- and we do not add one by hand.
+
+-- ===========================================================
+-- Part 4 and 5: Queue and QueueEntry
+-- A queue belongs to a service, and an entry belongs to both a
+-- queue and a user, so both links are foreign keys.
+-- ===========================================================
+
+-- One active line per service.
+CREATE TABLE IF NOT EXISTS Queue (
+    queue_id INT AUTO_INCREMENT PRIMARY KEY,
+    service_id INT NOT NULL,
+    status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_queue_service
+        FOREIGN KEY (service_id)
+        REFERENCES services(service_id)
+        ON DELETE CASCADE
+);
+
+-- The people waiting in a queue.
+-- position is written by the application, not by MySQL, because a
+-- high priority entry goes in front of people who already joined,
+-- so the numbers for that queue have to be set again.
+CREATE TABLE IF NOT EXISTS QueueEntry (
+    entry_id INT AUTO_INCREMENT PRIMARY KEY,
+    queue_id INT NOT NULL,
+    user_id INT NOT NULL,
+    position INT NOT NULL,
+    priority ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
+    joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('waiting', 'served', 'canceled') NOT NULL DEFAULT 'waiting',
+    CONSTRAINT fk_entry_queue
+        FOREIGN KEY (queue_id)
+        REFERENCES Queue(queue_id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_entry_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
