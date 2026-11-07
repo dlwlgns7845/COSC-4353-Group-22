@@ -1,14 +1,15 @@
 /* ===========================================================
-   QueueSmart - History Module (Assignment 3, part 6)
+   QueueSmart - History Module (part 6)
 
    Keeps a record of every queue a user already finished.
-   There is no database in this assignment, so the records
-   live in a plain array in memory. They disappear when the
-   server restarts, which is fine for A3.
+   In Assignment 3 these records lived in an array in memory.
+   For Assignment 4 they live in the QueueHistory table in
+   MySQL, so they survive a server restart.
 
-   This file exports two things:
-     1. plain functions  -> easy to unit test, no server needed
-     2. an express router -> so server.js can serve the routes
+   This file exports:
+     1. findProblems   -> plain validation, no database needed
+     2. the data functions -> they run the SQL
+     3. an express router  -> so server.js can serve the routes
 
    To turn the routes on, add these two lines to server.js:
        const history = require("./history");
@@ -16,17 +17,32 @@
    =========================================================== */
 
 const express = require("express");
+const db = require("./database/db");
 
-/* every finished queue, newest first */
-const records = [];
+/* Normally we talk to the real MySQL pool. The unit tests call
+   useDatabase() with a fake one so they can run without MySQL
+   installed. */
+let testDatabase = null;
 
-/* each new record gets the next number: 1, 2, 3 ... */
-let nextId = 1;
+function useDatabase(fake) {
+  testDatabase = fake;
+}
+
+function connection() {
+  if (testDatabase !== null) {
+    return testDatabase;
+  }
+  return db.getPool();
+}
 
 /* ===========================================================
    THE RULES
    One record needs a user, a service name and an outcome.
    "outcome" says how it ended: the user was served, or left.
+
+   The table enforces these too (NOT NULL, VARCHAR(100), ENUM),
+   but we check here first so the user gets a clear message
+   instead of a raw database error.
    =========================================================== */
 
 const ALLOWED_OUTCOMES = ["Served", "Left queue"];
@@ -66,13 +82,31 @@ function findProblems(record) {
 }
 
 /* ===========================================================
+   TURNING A TABLE ROW INTO THE SHAPE THE FRONT END EXPECTS
+
+   The columns use under_scores and the screens use camelCase,
+   so we rename them in one place instead of all over the app.
+   =========================================================== */
+
+function toRecord(row) {
+  return {
+    id: row.history_id,
+    userId: row.email,
+    serviceName: row.service_name,
+    waitMinutes: row.wait_minutes,
+    outcome: row.outcome,
+    completedAt: row.completed_at
+  };
+}
+
+/* ===========================================================
    THE ACTIONS
    =========================================================== */
 
 /* Save one finished queue.
    Throws when the record is not valid, so the route can
    answer with 400 and the list of problems. */
-function addRecord(record) {
+async function addRecord(record) {
   const problems = findProblems(record);
 
   if (problems.length > 0) {
@@ -81,59 +115,67 @@ function addRecord(record) {
     throw error;
   }
 
-  const saved = {
-    id: nextId,
+  const serviceName = record.serviceName.trim();
+  const waitMinutes = record.waitMinutes === undefined ? 0 : record.waitMinutes;
+  const completedAt = record.completedAt || new Date().toISOString().slice(0, 10);
+
+  const [result] = await connection().execute(
+    "INSERT INTO QueueHistory (email, service_name, wait_minutes, outcome, completed_at) VALUES (?, ?, ?, ?, ?)",
+    [record.userId, serviceName, waitMinutes, record.outcome, completedAt]
+  );
+
+  return {
+    id: result.insertId,
     userId: record.userId,
-    serviceName: record.serviceName.trim(),
-    waitMinutes: record.waitMinutes === undefined ? 0 : record.waitMinutes,
+    serviceName: serviceName,
+    waitMinutes: waitMinutes,
     outcome: record.outcome,
-    completedAt: record.completedAt || new Date().toISOString().slice(0, 10)
+    completedAt: completedAt
   };
-
-  nextId = nextId + 1;
-
-  /* newest first, so the history screen shows recent ones on top */
-  records.unshift(saved);
-
-  return saved;
 }
 
-/* Every record that belongs to one user. */
-function getRecordsForUser(userId) {
-  return records.filter(function (record) {
-    return record.userId === userId;
-  });
+/* Every record that belongs to one user, newest first.
+   DATE_FORMAT keeps the date a plain "2026-10-20" string
+   instead of a JavaScript Date object. */
+async function getRecordsForUser(userId) {
+  const [rows] = await connection().execute(
+    "SELECT history_id, email, service_name, wait_minutes, outcome," +
+      " DATE_FORMAT(completed_at, '%Y-%m-%d') AS completed_at" +
+      " FROM QueueHistory WHERE email = ?" +
+      " ORDER BY completed_at DESC, history_id DESC",
+    [userId]
+  );
+
+  return rows.map(toRecord);
 }
 
 /* The same list, but only between two dates.
-   Both dates are optional, and they look like "2026-10-23". */
-function getRecordsBetween(userId, fromDate, toDate) {
-  return getRecordsForUser(userId).filter(function (record) {
-    if (fromDate && record.completedAt < fromDate) {
-      return false;
-    }
-    if (toDate && record.completedAt > toDate) {
-      return false;
-    }
-    return true;
-  });
-}
+   Both dates are optional, and they look like "2026-10-23".
+   We build the WHERE part as we go so the database does the
+   filtering instead of us loading every row first. */
+async function getRecordsBetween(userId, fromDate, toDate) {
+  let sql =
+    "SELECT history_id, email, service_name, wait_minutes, outcome," +
+    " DATE_FORMAT(completed_at, '%Y-%m-%d') AS completed_at" +
+    " FROM QueueHistory WHERE email = ?";
 
-/* A few finished queues so the history screen has something to show.
-   The assignment allows mocked data, and the tests call clearAll()
-   first so these rows never affect them. */
-function seedDemoRecords() {
-  addRecord({ userId: "student@uh.edu", serviceName: "ID Card Services",  waitMinutes: 8,  outcome: "Served",     completedAt: "2026-10-18" });
-  addRecord({ userId: "student@uh.edu", serviceName: "Academic Advising", waitMinutes: 24, outcome: "Served",     completedAt: "2026-10-20" });
-  addRecord({ userId: "student@uh.edu", serviceName: "Financial Aid",     waitMinutes: 31, outcome: "Left queue", completedAt: "2026-10-22" });
-}
+  const values = [userId];
 
-seedDemoRecords();
+  if (fromDate) {
+    sql = sql + " AND completed_at >= ?";
+    values.push(fromDate);
+  }
 
-/* Used by the tests so each test starts from an empty list. */
-function clearAll() {
-  records.length = 0;
-  nextId = 1;
+  if (toDate) {
+    sql = sql + " AND completed_at <= ?";
+    values.push(toDate);
+  }
+
+  sql = sql + " ORDER BY completed_at DESC, history_id DESC";
+
+  const [rows] = await connection().execute(sql, values);
+
+  return rows.map(toRecord);
 }
 
 /* ===========================================================
@@ -144,24 +186,44 @@ const router = express.Router();
 
 /* GET /api/history/:userId
    Optional query: ?from=2026-10-01&to=2026-10-23 */
-router.get("/:userId", function (req, res) {
-  const userId = req.params.userId;
-  const list = getRecordsBetween(userId, req.query.from, req.query.to);
+router.get("/:userId", async function (req, res) {
+  try {
+    const list = await getRecordsBetween(
+      req.params.userId,
+      req.query.from,
+      req.query.to
+    );
 
-  return res.status(200).json({ history: list });
+    return res.status(200).json({ history: list });
+  } catch (error) {
+    return res.status(500).json({ message: "Could not read the history." });
+  }
 });
 
 /* POST /api/history
    Called when a user is served or leaves a queue. */
-router.post("/", function (req, res) {
+router.post("/", async function (req, res) {
   try {
-    const saved = addRecord(req.body);
+    const saved = await addRecord(req.body);
     return res.status(201).json(saved);
   } catch (error) {
-    return res.status(400).json({
-      message: error.message,
-      problems: error.problems || []
-    });
+    /* our own validation error carries a problems list */
+    if (error.problems) {
+      return res.status(400).json({
+        message: error.message,
+        problems: error.problems
+      });
+    }
+
+    /* the user does not exist yet, so the foreign key says no */
+    if (error.code === "ER_NO_REFERENCED_ROW_2") {
+      return res.status(400).json({
+        message: "That user is not registered.",
+        problems: ["userId must belong to a registered user."]
+      });
+    }
+
+    return res.status(500).json({ message: "Could not save the record." });
   }
 });
 
@@ -171,5 +233,5 @@ module.exports = {
   findProblems: findProblems,
   getRecordsForUser: getRecordsForUser,
   getRecordsBetween: getRecordsBetween,
-  clearAll: clearAll
+  useDatabase: useDatabase
 };

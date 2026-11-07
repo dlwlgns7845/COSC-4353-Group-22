@@ -1,16 +1,21 @@
 /* ===========================================================
    Unit tests for the History module.
 
+   The module now talks to MySQL, so each test gives it a fake
+   database first. That keeps the tests fast and lets them run
+   on a machine with no MySQL server.
+
    Run them with:  npm test
    With coverage:  npm run coverage
    =========================================================== */
 
 const history = require("../history");
+const fakeDatabase = require("../test-helpers/fake-database");
 
 /* a record that passes every rule, used as a starting point */
 function validRecord(changes) {
   const base = {
-    userId: "u1",
+    userId: "u1@uh.edu",
     serviceName: "Financial Aid",
     waitMinutes: 20,
     outcome: "Served",
@@ -20,13 +25,31 @@ function validRecord(changes) {
   return Object.assign({}, base, changes);
 }
 
-/* start every test with an empty list */
+/* one table row as MySQL would hand it back */
+function validRow(changes) {
+  const base = {
+    history_id: 1,
+    email: "u1@uh.edu",
+    service_name: "Financial Aid",
+    wait_minutes: 20,
+    outcome: "Served",
+    completed_at: "2026-10-20"
+  };
+
+  return Object.assign({}, base, changes);
+}
+
+let db;
+
+/* start every test with a clean fake database */
 beforeEach(function () {
-  history.clearAll();
+  db = fakeDatabase();
+  history.useDatabase(db);
 });
 
 /* ===========================================================
    VALIDATION
+   These run before any SQL, so they need no database at all.
    =========================================================== */
 
 describe("validation", function () {
@@ -89,60 +112,87 @@ describe("validation", function () {
 
 describe("addRecord", function () {
 
-  test("saves a valid record and gives it an id", function () {
-    const saved = history.addRecord(validRecord());
+  test("saves a valid record and gives back the new id", async function () {
+    db.willReturn({ insertId: 7 });
 
-    expect(saved.id).toBe(1);
+    const saved = await history.addRecord(validRecord());
+
+    expect(saved.id).toBe(7);
     expect(saved.serviceName).toBe("Financial Aid");
-    expect(history.getRecordsForUser("u1").length).toBe(1);
   });
 
-  test("ids count up", function () {
-    const first = history.addRecord(validRecord());
-    const second = history.addRecord(validRecord());
+  test("the record is written with an INSERT", async function () {
+    db.willReturn({ insertId: 1 });
 
-    expect(first.id).toBe(1);
-    expect(second.id).toBe(2);
+    await history.addRecord(validRecord());
+
+    expect(db.lastCall().sql).toContain("INSERT INTO QueueHistory");
   });
 
-  test("extra spaces around the service name are removed", function () {
-    const saved = history.addRecord(validRecord({ serviceName: "  ID Card  " }));
+  test("the values go into the statement in the right order", async function () {
+    db.willReturn({ insertId: 1 });
+
+    await history.addRecord(validRecord());
+
+    expect(db.lastCall().values).toEqual([
+      "u1@uh.edu",
+      "Financial Aid",
+      20,
+      "Served",
+      "2026-10-20"
+    ]);
+  });
+
+  test("the values are passed separately, not glued into the SQL", async function () {
+    db.willReturn({ insertId: 1 });
+
+    await history.addRecord(validRecord({ serviceName: "Tutoring" }));
+
+    /* placeholders keep the statement safe from SQL injection */
+    expect(db.lastCall().sql).toContain("?");
+    expect(db.lastCall().sql).not.toContain("Tutoring");
+  });
+
+  test("extra spaces around the service name are removed", async function () {
+    db.willReturn({ insertId: 1 });
+
+    const saved = await history.addRecord(validRecord({ serviceName: "  ID Card  " }));
+
     expect(saved.serviceName).toBe("ID Card");
+    expect(db.lastCall().values[1]).toBe("ID Card");
   });
 
-  test("a missing waitMinutes becomes 0", function () {
+  test("a missing waitMinutes becomes 0", async function () {
+    db.willReturn({ insertId: 1 });
+
     const record = validRecord();
     delete record.waitMinutes;
 
-    expect(history.addRecord(record).waitMinutes).toBe(0);
+    expect((await history.addRecord(record)).waitMinutes).toBe(0);
   });
 
-  test("a missing date becomes today", function () {
+  test("a missing date becomes today", async function () {
+    db.willReturn({ insertId: 1 });
+
     const record = validRecord();
     delete record.completedAt;
 
     const today = new Date().toISOString().slice(0, 10);
-    expect(history.addRecord(record).completedAt).toBe(today);
+
+    expect((await history.addRecord(record)).completedAt).toBe(today);
   });
 
-  test("the newest record comes first", function () {
-    history.addRecord(validRecord({ serviceName: "Older" }));
-    history.addRecord(validRecord({ serviceName: "Newer" }));
+  test("an invalid record is rejected and nothing is written", async function () {
+    await expect(
+      history.addRecord(validRecord({ outcome: "Nope" }))
+    ).rejects.toThrow("Invalid history record.");
 
-    expect(history.getRecordsForUser("u1")[0].serviceName).toBe("Newer");
+    expect(db.calls.length).toBe(0);
   });
 
-  test("an invalid record is rejected and nothing is saved", function () {
-    expect(function () {
-      history.addRecord(validRecord({ outcome: "Nope" }));
-    }).toThrow("Invalid history record.");
-
-    expect(history.getRecordsForUser("u1").length).toBe(0);
-  });
-
-  test("the thrown error carries the list of problems", function () {
+  test("the thrown error carries the list of problems", async function () {
     try {
-      history.addRecord({ serviceName: "" });
+      await history.addRecord({ serviceName: "" });
       /* we should never get here, so fail on purpose if we do */
       throw new Error("addRecord should have thrown");
     } catch (error) {
@@ -155,42 +205,106 @@ describe("addRecord", function () {
    READING
    =========================================================== */
 
-describe("reading the history", function () {
+describe("getRecordsForUser", function () {
 
-  test("each user only sees their own records", function () {
-    history.addRecord(validRecord({ userId: "u1" }));
-    history.addRecord(validRecord({ userId: "u2" }));
+  test("asks only for the rows of that user", async function () {
+    db.willReturn([]);
 
-    expect(history.getRecordsForUser("u1").length).toBe(1);
-    expect(history.getRecordsForUser("u2").length).toBe(1);
+    await history.getRecordsForUser("u1@uh.edu");
+
+    expect(db.lastCall().sql).toContain("WHERE email = ?");
+    expect(db.lastCall().values).toEqual(["u1@uh.edu"]);
   });
 
-  test("a user with no history gets an empty list", function () {
-    expect(history.getRecordsForUser("nobody")).toEqual([]);
+  test("a table row comes back in the shape the screens use", async function () {
+    db.willReturn([validRow()]);
+
+    const list = await history.getRecordsForUser("u1@uh.edu");
+
+    expect(list[0]).toEqual({
+      id: 1,
+      userId: "u1@uh.edu",
+      serviceName: "Financial Aid",
+      waitMinutes: 20,
+      outcome: "Served",
+      completedAt: "2026-10-20"
+    });
   });
 
-  test("the date filter keeps only the records in range", function () {
-    history.addRecord(validRecord({ completedAt: "2026-10-01" }));
-    history.addRecord(validRecord({ completedAt: "2026-10-15" }));
-    history.addRecord(validRecord({ completedAt: "2026-10-30" }));
+  test("a user with no history gets an empty list", async function () {
+    db.willReturn([]);
 
-    const inRange = history.getRecordsBetween("u1", "2026-10-10", "2026-10-20");
-
-    expect(inRange.length).toBe(1);
-    expect(inRange[0].completedAt).toBe("2026-10-15");
+    expect(await history.getRecordsForUser("nobody@uh.edu")).toEqual([]);
   });
 
-  test("only a from date still works", function () {
-    history.addRecord(validRecord({ completedAt: "2026-10-01" }));
-    history.addRecord(validRecord({ completedAt: "2026-10-30" }));
+  test("the newest record is asked for first", async function () {
+    db.willReturn([]);
 
-    expect(history.getRecordsBetween("u1", "2026-10-10").length).toBe(1);
+    await history.getRecordsForUser("u1@uh.edu");
+
+    expect(db.lastCall().sql).toContain("ORDER BY completed_at DESC");
   });
 
-  test("no dates returns everything", function () {
-    history.addRecord(validRecord());
-    history.addRecord(validRecord());
+  test("every row is converted, not just the first one", async function () {
+    db.willReturn([
+      validRow({ history_id: 1 }),
+      validRow({ history_id: 2 }),
+      validRow({ history_id: 3 })
+    ]);
 
-    expect(history.getRecordsBetween("u1").length).toBe(2);
+    const list = await history.getRecordsForUser("u1@uh.edu");
+
+    expect(list.length).toBe(3);
+    expect(list[2].id).toBe(3);
+  });
+});
+
+describe("getRecordsBetween", function () {
+
+  test("both dates are added to the query", async function () {
+    db.willReturn([]);
+
+    await history.getRecordsBetween("u1@uh.edu", "2026-10-10", "2026-10-20");
+
+    expect(db.lastCall().sql).toContain("completed_at >= ?");
+    expect(db.lastCall().sql).toContain("completed_at <= ?");
+    expect(db.lastCall().values).toEqual(["u1@uh.edu", "2026-10-10", "2026-10-20"]);
+  });
+
+  test("only a from date still works", async function () {
+    db.willReturn([]);
+
+    await history.getRecordsBetween("u1@uh.edu", "2026-10-10");
+
+    expect(db.lastCall().sql).toContain("completed_at >= ?");
+    expect(db.lastCall().sql).not.toContain("completed_at <= ?");
+    expect(db.lastCall().values).toEqual(["u1@uh.edu", "2026-10-10"]);
+  });
+
+  test("only a to date still works", async function () {
+    db.willReturn([]);
+
+    await history.getRecordsBetween("u1@uh.edu", undefined, "2026-10-20");
+
+    expect(db.lastCall().sql).not.toContain("completed_at >= ?");
+    expect(db.lastCall().sql).toContain("completed_at <= ?");
+    expect(db.lastCall().values).toEqual(["u1@uh.edu", "2026-10-20"]);
+  });
+
+  test("no dates asks for everything that user has", async function () {
+    db.willReturn([]);
+
+    await history.getRecordsBetween("u1@uh.edu");
+
+    expect(db.lastCall().sql).not.toContain("completed_at >=");
+    expect(db.lastCall().values).toEqual(["u1@uh.edu"]);
+  });
+
+  test("the rows come back in the shape the screens use", async function () {
+    db.willReturn([validRow({ service_name: "Advising" })]);
+
+    const list = await history.getRecordsBetween("u1@uh.edu");
+
+    expect(list[0].serviceName).toBe("Advising");
   });
 });
