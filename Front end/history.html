@@ -58,96 +58,96 @@
         <script src="data.js"></script>
         <script src="nav.js"></script>
         <script>
-            renderNav("history", "user");
+    renderNav("history", "user");
 
-            const API_BASE = "http://localhost:3000";
+    let allHistory = [];
 
-            /* Ask the backend for data. Same helper the other screens use. */
-            async function apiRequest(path) {
-                const response = await fetch(API_BASE + path, { cache: "no-store" });
+    // Display history records in the table.
+    function showHistory(rows) {
+        let html = "";
 
-                const data = await response.json().catch(() => ({}));
+        if (rows.length === 0) {
+            html = '<tr><td colspan="4" class="empty">No records found.</td></tr>';
+        }
 
-                if (!response.ok) {
-                    throw new Error(
-                        data.error || `Request failed (${response.status})`
-                    );
-                }
+        rows.forEach(function (row) {
+            html += "<tr>" +
+                "<td>" + row.date + "</td>" +
+                "<td>" + row.serviceName + "</td>" +
+                "<td>" + row.waitMinutes + " min</td>" +
+                "<td>" + row.outcome + "</td>" +
+                "</tr>";
+        });
 
-                return data;
+        document.getElementById("historyRows").innerHTML = html;
+    }
+
+    // Load history records from the backend.
+    async function loadHistory() {
+        try {
+            const response = await fetch(
+                "http://localhost:3000/api/history/" +
+                encodeURIComponent(CURRENT_USER.email)
+            );
+
+            if (!response.ok) {
+                throw new Error("Could not load history");
             }
 
-            /* Draw the table from whatever the backend sent back. */
-            function showHistory(rows) {
-                let html = "";
+            const data = await response.json();
 
-                if (rows.length === 0) {
-                    html = '<tr><td colspan="4" class="empty">No records found.</td></tr>';
-                }
-
-                rows.forEach(function (row) {
-                    html += "<tr>" +
-                              "<td>" + row.completedAt + "</td>" +
-                              "<td>" + row.serviceName + "</td>" +
-                              "<td>" + row.waitMinutes + " min</td>" +
-                              "<td>" + row.outcome + "</td>" +
-                            "</tr>";
-                });
-
-                document.getElementById("historyRows").innerHTML = html;
-            }
-
-            function showMessage(text) {
-                document.getElementById("historyRows").innerHTML =
-                    '<tr><td colspan="4" class="empty">' + text + "</td></tr>";
-            }
-
-            /* Load the history for the logged in user.
-               The dates are optional and go to the backend as a query. */
-            async function loadHistory(fromDate, toDate) {
-                const userId = encodeURIComponent(CURRENT_USER.email);
-
-                let path = "/api/history/" + userId;
-                const parts = [];
-
-                if (fromDate) { parts.push("from=" + fromDate); }
-                if (toDate) { parts.push("to=" + toDate); }
-
-                if (parts.length > 0) {
-                    path = path + "?" + parts.join("&");
-                }
-
-                try {
-                    const data = await apiRequest(path);
-                    showHistory(data.history);
-                } catch (error) {
-                    showMessage("Could not load your history. Is the server running?");
-                }
-            }
-
-            document.getElementById("applyButton").addEventListener("click", function () {
-                const from = document.getElementById("fromDate").value;
-                const to = document.getElementById("toDate").value;
-                const error = document.getElementById("dateError");
-
-                /* validation: when both dates are filled, from must come first */
-                if (from && to && from > to) {
-                    error.style.display = "block";
-                    return;
-                }
-
-                error.style.display = "none";
-                loadHistory(from, to);
+            allHistory = data.history.map(function (record) {
+                return {
+                    date: String(record.completedAt).slice(0, 10),
+                    serviceName: record.serviceName,
+                    waitMinutes: record.waitMinutes,
+                    outcome: record.outcome
+                };
             });
 
-            document.getElementById("clearButton").addEventListener("click", function () {
-                document.getElementById("fromDate").value = "";
-                document.getElementById("toDate").value = "";
-                document.getElementById("dateError").style.display = "none";
-                loadHistory();
-            });
+            showHistory(allHistory);
 
-            loadHistory();
-        </script>
+        } catch (error) {
+            console.error(error);
+
+            document.getElementById("historyRows").innerHTML =
+                '<tr><td colspan="4">Could not load history.</td></tr>';
+        }
+    }
+
+    // Apply the date filter.
+    document.getElementById("applyButton").addEventListener("click", function () {
+        const from = document.getElementById("fromDate").value;
+        const to = document.getElementById("toDate").value;
+        const error = document.getElementById("dateError");
+
+        if (from && to && from > to) {
+            error.style.display = "block";
+            return;
+        }
+
+        error.style.display = "none";
+
+        const filtered = allHistory.filter(function (row) {
+            if (from && row.date < from) return false;
+            if (to && row.date > to) return false;
+            return true;
+        });
+
+        showHistory(filtered);
+    });
+
+    // Clear the date filter.
+    document.getElementById("clearButton").addEventListener("click", function () {
+        document.getElementById("fromDate").value = "";
+        document.getElementById("toDate").value = "";
+        document.getElementById("dateError").style.display = "none";
+
+        showHistory(allHistory);
+    });
+
+    // Load the records when the page opens.
+    loadHistory();
+</script>
     </body>
 </html>

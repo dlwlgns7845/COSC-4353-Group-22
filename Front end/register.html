@@ -13,7 +13,7 @@
     <div class="auth-card">
       <h1>Create an account</h1>
 
-      <form id="registerForm" novalidate>
+      <form id="registerForm" novalidate data-redirect="login.html">
 
         <div class="field">
           <label for="fullName">Full name</label>
@@ -39,6 +39,8 @@
         </div>
 
         <button type="submit">Create account</button>
+
+        <div class="form-success" id="formSuccess" role="status"></div>
       </form>
 
       <div class="auth-links">
@@ -48,7 +50,6 @@
   </div>
 
   <script src="validation.js"></script>
-  <script src="registration.js"></script>
 
 </body>
 </html>

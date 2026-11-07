@@ -10,7 +10,7 @@
    =========================================================== */
 
 /* The user who is "logged in". Normally this comes from the server. */
-const CURRENT_USER = { name: "Jihoon Lee", email: "student@uh.edu" };
+const CURRENT_USER = { name: "Jihoon Lee", email: "123@user.com" };
 
 /* ---------- starting data (used on the very first visit) ---------- */
 
@@ -91,36 +91,145 @@ function setHistory(list)  { save("history", list); }
 function getNotifications()     { return load("notifications", DEFAULT_NOTIFICATIONS); }
 function setNotifications(list) { save("notifications", list); }
 
-/* Add a new notification to the top of the list.
-   "type" is "queue" or "status", and it starts as unread. */
-function addNotification(text, type, title) {
-  const list = getNotifications();
-  const now = new Date();
-  const time = String(now.getHours()).padStart(2, "0") + ":" +
-               String(now.getMinutes()).padStart(2, "0");
+/* ---------- notifications (MySQL backend) ---------- */
 
-  list.unshift({
+let notificationCache = [];
+
+const NOTIFICATION_API = "http://localhost:3000/api/notifications";
+
+function getNotifications() {
+  return notificationCache;
+}
+
+function setNotifications(list) {
+  notificationCache = list;
+}
+
+/* Load notifications from the backend. */
+async function loadNotifications() {
+  try {
+    const response = await fetch(
+      NOTIFICATION_API + "/" + encodeURIComponent(CURRENT_USER.email)
+    );
+
+    if (!response.ok) {
+      throw new Error("Could not load notifications");
+    }
+
+    const data = await response.json();
+
+    notificationCache = data.map(function (n) {
+      return {
+        id: n.id,
+        type: "queue",
+        title: "Queue updated",
+        text: n.message,
+        time: new Date(n.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        }),
+        read: n.status === "viewed"
+      };
+    });
+
+    /* Refresh the bell and dashboard after the data arrives. */
+    if (typeof drawBellPanel === "function" &&
+        document.getElementById("bellPanel")) {
+      drawBellPanel();
+      updateBellBadge();
+    }
+
+    if (typeof showNotifications === "function") {
+      showNotifications();
+    }
+
+  } catch (error) {
+    console.error("Notification loading failed:", error);
+  }
+}
+
+/* Save a new notification to MySQL. */
+function addNotification(text, type, title) {
+  const notification = {
     id: Date.now(),
     type: type || "queue",
     title: title || "Queue updated",
     text: text,
-    time: time,
+    time: new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit"
+    }),
     read: false
+  };
+
+  notificationCache.unshift(notification);
+
+  if (typeof drawBellPanel === "function" &&
+      document.getElementById("bellPanel")) {
+    drawBellPanel();
+    updateBellBadge();
+  }
+
+  fetch(NOTIFICATION_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      email: CURRENT_USER.email,
+      message: text
+    })
+  })
+  .then(function (response) {
+    if (!response.ok) {
+      throw new Error("Could not save notification");
+    }
+  })
+  .catch(function (error) {
+    console.error("Notification saving failed:", error);
+  });
+}
+
+/* Count unread notifications. */
+function countUnread() {
+  return notificationCache.filter(function (n) {
+    return !n.read;
+  }).length;
+}
+
+/* Mark all notifications as read in MySQL. */
+function markAllRead() {
+  notificationCache.forEach(function (n) {
+    n.read = true;
   });
 
-  setNotifications(list);
+  fetch(
+    NOTIFICATION_API + "/" +
+    encodeURIComponent(CURRENT_USER.email) + "/viewed",
+    {
+      method: "PATCH"
+    }
+  ).catch(function (error) {
+    console.error("Could not mark notifications as read:", error);
+  });
 }
 
-/* How many notifications the user has not opened yet. */
-function countUnread() {
-  return getNotifications().filter(function (n) { return !n.read; }).length;
-}
+/* Update the red number on the bell. */
+function updateBellBadge() {
+  const button = document.getElementById("bellButton");
+  if (!button) return;
 
-/* Mark every notification as read. */
-function markAllRead() {
-  const list = getNotifications();
-  list.forEach(function (n) { n.read = true; });
-  setNotifications(list);
+  const oldBadge = button.querySelector(".bell-badge");
+  if (oldBadge) oldBadge.remove();
+
+  const unread = countUnread();
+
+  if (unread > 0) {
+    const badge = document.createElement("span");
+    badge.className = "bell-badge";
+    badge.textContent = unread;
+    button.appendChild(badge);
+  }
 }
 
 /* ---------- small shared helpers ---------- */

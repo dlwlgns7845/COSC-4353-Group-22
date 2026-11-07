@@ -82,14 +82,14 @@ const CURRENT_USER_ID = 1;
         services = await apiRequest("/services");
 
         // Get all queues from the backend.
-        queues = await apiRequest("/queues");
+        queues = await apiRequest("/queue");
 
         // Get entries from each queue.
         queue = [];
 
         for (const item of queues) {
             const entries = await apiRequest(
-                "/queues/" + item.queueId + "/entries"
+                "/queue/" + item.queueId + "/entries"
             );
 
             queue = queue.concat(entries);
@@ -144,10 +144,16 @@ const CURRENT_USER_ID = 1;
             return;
         }
 
-        const waiting = queue.filter(function (entry) {
-            return Number(entry.serviceId) === Number(service.id) &&
-                   entry.status === "waiting";
-        }).length;
+        const selectedQueue = queues.find(function (item) {
+            return Number(item.serviceId) === Number(service.id);
+        });
+
+        const waiting = selectedQueue
+            ? queue.filter(function (entry) {
+                return Number(entry.queueId) === Number(selectedQueue.queueId) &&
+                    entry.status === "waiting";
+        }).length
+        : 0;
 
         document.getElementById("serviceDescription").textContent =
             service.description;
@@ -161,8 +167,8 @@ const CURRENT_USER_ID = 1;
 
     function showCurrentQueue() {
         const myEntry = queue.find(function (entry) {
-            return entry.userName === CURRENT_USER.name &&
-                   entry.status === "waiting";
+            return Number(entry.userId) === CURRENT_USER_ID &&
+           entry.status === "waiting";
         });
 
         const message = document.getElementById("currentQueue");
@@ -179,7 +185,7 @@ const CURRENT_USER_ID = 1;
 
         message.textContent = service
             ? "You are waiting for " + service.name +
-              " since " + new Date(myEntry.joinedAt).toLocaleTimeString()
+              " since " + new Date(myEntry.joinTime).toLocaleTimeString()
             : "You are currently waiting in a queue.";
 
         document.getElementById("joinButton").textContent = "Switch Queue";
@@ -198,7 +204,7 @@ async function joinQueue(serviceId) {
 
         // Create a queue if one does not exist.
         if (!selectedQueue) {
-            selectedQueue = await apiRequest("/queues", {
+            selectedQueue = await apiRequest("/queue", {
                 method: "POST",
                 body: JSON.stringify({
                     serviceId: serviceId
@@ -217,7 +223,7 @@ async function joinQueue(serviceId) {
         // Cancel the previous entry if switching queues.
         if (existingEntry) {
             await apiRequest(
-                "/queues/" + existingEntry.queueId +
+                "/queue/" + existingEntry.queueId +
                 "/entries/" + existingEntry.entryId,
                 {
                     method: "DELETE"
@@ -227,7 +233,7 @@ async function joinQueue(serviceId) {
 
         // Add the user to the selected queue.
         await apiRequest(
-            "/queues/" + selectedQueue.queueId + "/entries",
+            "/queue/" + selectedQueue.queueId + "/entries",
             {
                 method: "POST",
                 body: JSON.stringify({
@@ -272,7 +278,7 @@ async function leaveQueue() {
 
         // Cancel the entry in the backend.
         await apiRequest(
-            "/queues/" + myEntry.queueId +
+            "/queue/" + myEntry.queueId +
             "/entries/" + myEntry.entryId,
             {
                 method: "DELETE"
