@@ -51,7 +51,11 @@
     const API_URL = "http://localhost:3000/api";
 
     let services = [];
+    let queues = [];
     let queue = [];
+
+// Temporary user ID until we implement user accounts.
+const CURRENT_USER_ID = 1;
 
     // Send requests to the backend.
     async function apiRequest(path, options = {}) {
@@ -72,21 +76,36 @@
         return data;
     }
 
-    // Load services and queue entries from the backend.
     async function loadData() {
-        try {
-            services = await apiRequest("/services");
-            queue = await apiRequest("/queue");
+    try {
+        // Get services from the backend.
+        services = await apiRequest("/services");
 
-            fillServices();
-            showWaitTime();
-            showCurrentQueue();
-        } catch (error) {
-            console.error(error);
-            document.getElementById("serviceDescription").textContent =
-                "Could not load services. Please try again.";
+        // Get all queues from the backend.
+        queues = await apiRequest("/queues");
+
+        // Get entries from each queue.
+        queue = [];
+
+        for (const item of queues) {
+            const entries = await apiRequest(
+                "/queues/" + item.queueId + "/entries"
+            );
+
+            queue = queue.concat(entries);
         }
+
+        fillServices();
+        showWaitTime();
+        showCurrentQueue();
+
+    } catch (error) {
+        console.error(error);
+
+        document.getElementById("serviceDescription").textContent =
+            "Could not load services. " + error.message;
     }
+}
 
     // Populate the dropdown using real backend service IDs.
     function fillServices() {
@@ -167,77 +186,113 @@
     }
 
     // Join the selected service through the backend API.
-    async function joinQueue(serviceId) {
-        const button = document.getElementById("joinButton");
-        button.disabled = true;
+async function joinQueue(serviceId) {
+    const button = document.getElementById("joinButton");
+    button.disabled = true;
 
-        try {
-            // Find any existing queue entry for this user.
-            const existingEntry = queue.find(function (entry) {
-                return entry.userName === CURRENT_USER.name &&
-                       entry.status === "waiting";
-            });
+    try {
+        // Find the selected service's queue.
+        let selectedQueue = queues.find(function (item) {
+            return Number(item.serviceId) === Number(serviceId);
+        });
 
-            // Leave the previous queue before switching.
-            if (existingEntry) {
-                await apiRequest("/queue/" + existingEntry.id, {
-                    method: "DELETE"
-                });
-            }
-
-            await apiRequest("/queue", {
+        // Create a queue if one does not exist.
+        if (!selectedQueue) {
+            selectedQueue = await apiRequest("/queues", {
                 method: "POST",
                 body: JSON.stringify({
-                    serviceId: serviceId,
-                    userName: CURRENT_USER.name,
-                    priority: "medium"
+                    serviceId: serviceId
                 })
             });
 
-            addNotification(
-                "You joined the queue for " +
-                getSelectedService().name + ".",
-                "queue",
-                "Queue joined"
-            );
-
-            window.location.href = "queue_status.html";
-        } catch (error) {
-            alert("Could not join the queue: " + error.message);
-            await loadData();
-        } finally {
-            button.disabled = false;
+            queues.push(selectedQueue);
         }
-    }
 
-    // Leave the queue through the backend API.
-    async function leaveQueue() {
-        try {
-            const myEntry = queue.find(function (entry) {
-                return entry.userName === CURRENT_USER.name &&
-                       entry.status === "waiting";
-            });
+        // Check whether this user is already waiting.
+        const existingEntry = queue.find(function (entry) {
+            return Number(entry.userId) === CURRENT_USER_ID &&
+                   entry.status === "waiting";
+        });
 
-            if (!myEntry) {
-                alert("You are not in a queue right now.");
-                return;
+        // Cancel the previous entry if switching queues.
+        if (existingEntry) {
+            await apiRequest(
+                "/queues/" + existingEntry.queueId +
+                "/entries/" + existingEntry.entryId,
+                {
+                    method: "DELETE"
+                }
+            );
+        }
+
+        // Add the user to the selected queue.
+        await apiRequest(
+            "/queues/" + selectedQueue.queueId + "/entries",
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    userId: CURRENT_USER_ID
+                })
             }
+        );
 
-            await apiRequest("/queue/" + myEntry.id, {
-                method: "DELETE"
-            });
+        addNotification(
+            "You joined the queue for " +
+            getSelectedService().name + ".",
+            "queue",
+            "Queue joined"
+        );
 
-            addNotification(
-                "You left the queue.",
-                "queue",
-                "Queue left"
-            );
+        alert("You successfully joined the queue!");
 
-            await loadData();
-        } catch (error) {
-            alert("Could not leave the queue: " + error.message);
-        }
+        await loadData();
+
+    } catch (error) {
+        alert("Could not join the queue: " + error.message);
+        await loadData();
+    } finally {
+        button.disabled = false;
     }
+}
+    
+
+   // Leave the current queue through the backend.
+async function leaveQueue() {
+    try {
+        // Find this user's active queue entry.
+        const myEntry = queue.find(function (entry) {
+            return Number(entry.userId) === CURRENT_USER_ID &&
+                   entry.status === "waiting";
+        });
+
+        if (!myEntry) {
+            alert("You are not in a queue right now.");
+            return;
+        }
+
+        // Cancel the entry in the backend.
+        await apiRequest(
+            "/queues/" + myEntry.queueId +
+            "/entries/" + myEntry.entryId,
+            {
+                method: "DELETE"
+            }
+        );
+
+        addNotification(
+            "You left the queue.",
+            "queue",
+            "Queue left"
+        );
+
+        alert("You successfully left the queue.");
+
+        await loadData();
+
+    } catch (error) {
+        alert("Could not leave the queue: " + error.message);
+    }
+}
 
     // Validate the form before joining.
     document.getElementById("joinForm").addEventListener(

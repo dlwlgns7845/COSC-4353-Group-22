@@ -70,7 +70,9 @@
   };
 
   let services = [];
+  let queues = [];
   let queue = [];
+  let currentQueueId = null;
 
   // Read the requested service ID from the page URL.
   function getServiceIdFromUrl() {
@@ -129,26 +131,48 @@
     });
   }
 
-  // Load queue entries from the backend.
   async function loadQueue() {
     const serviceId = selectedServiceId();
 
     if (!serviceId) {
-      queue = [];
-      showQueue();
-      return;
+        queues = [];
+        queue = [];
+        currentQueueId = null;
+        showQueue();
+        return;
     }
 
-    queue = await apiRequest("/queue?serviceId=" + serviceId);
+    // Get all queues.
+    queues = await apiRequest("/queues");
+
+    // Find the queue for the selected service.
+    const selectedQueue = queues.find(function (item) {
+        return Number(item.serviceId) === serviceId;
+    });
+
+    if (!selectedQueue) {
+        queue = [];
+        currentQueueId = null;
+        showQueue();
+        return;
+    }
+
+    // Get the queue ID.
+    currentQueueId = selectedQueue.queueId;
+
+    // Get people waiting in that queue.
+    queue = await apiRequest(
+        "/queues/" + currentQueueId + "/entries"
+    );
+
     showQueue();
-  }
+}
 
   // Draw the queue and summary numbers.
   function showQueue() {
     const line = queue.filter(function (entry) {
-      return Number(entry.serviceId) === selectedServiceId();
-    });
-
+    return entry.status === "waiting";
+  });
     const service = findSelectedService();
 
     document.getElementById("waitingCount").textContent = line.length;
@@ -159,7 +183,7 @@
         : Math.round(line.length * service.duration / 2)) + " min";
 
     document.getElementById("nextPerson").textContent =
-      line.length === 0 ? "-" : line[0].userName;
+      line.length === 0 ? "-" : "User " + line[0].userId;
 
     const rows = document.getElementById("queueRows");
     rows.innerHTML = "";
@@ -174,9 +198,9 @@
     line.forEach(function (entry, index) {
       const row = document.createElement("tr");
 
-      const joined = new Date(entry.joinedAt);
+      const joined = new Date(entry.joinTime);
       const joinedText = Number.isNaN(joined.getTime())
-        ? entry.joinedAt
+        ? entry.joinTime
         : joined.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit"
@@ -201,7 +225,7 @@
       removeButton.className = "small red";
       removeButton.textContent = "Remove";
       removeButton.addEventListener("click", function () {
-        removeUser(entry.id);
+        removeUser(entry.entryId);
       });
 
       row.children[4].appendChild(removeButton);
@@ -210,82 +234,97 @@
   }
 
   // Remove an entry through the backend.
-  async function removeUser(entryId) {
+async function removeUser(entryId) {
+
     const entry = queue.find(function (item) {
-      return item.id === entryId;
+        return item.entryId === entryId;
     });
 
     if (!entry) return;
 
-    if (!confirm("Remove " + entry.userName + " from this queue?")) {
+    if (!confirm("Remove user ID " + entry.userId + " from this queue?")) {
+        return;
+    }
+
+    try {
+        await apiRequest(
+            "/queues/" + currentQueueId + "/entries/" + entryId,
+            {
+                method: "DELETE"
+            }
+        );
+
+        addNotification(
+            "User ID " + entry.userId + " was removed from the queue.",
+            "queue",
+            "Removed from queue"
+        );
+
+        await loadQueue();
+
+    } catch (error) {
+        alert("Could not remove user: " + error.message);
+    }
+}
+
+  document.getElementById("serveButton").addEventListener(
+  "click",
+  async function () {
+    const service = findSelectedService();
+
+    if (!currentQueueId) {
+      alert("There is no queue for this service.");
+      return;
+    }
+
+    const line = queue.filter(function (entry) {
+      return entry.status === "waiting";
+    });
+
+    if (line.length === 0) {
+      alert("Nobody is waiting for this service.");
       return;
     }
 
     try {
-      await apiRequest("/queue/" + entryId, {
-        method: "DELETE"
-      });
-
-      addNotification(
-        entry.userName + " was removed from the queue.",
-        "queue",
-        "Removed from queue"
+      const result = await apiRequest(
+        "/queues/" + currentQueueId + "/serve",
+        {
+          method: "POST"
+        }
       );
 
-      await loadQueue();
-    } catch (error) {
-      alert("Could not remove user: " + error.message);
-    }
-  }
+      const servedPerson = result.servedEntry;
 
-  // Serve the next person through the backend.
-  document.getElementById("serveButton").addEventListener(
-    "click",
-    async function () {
-      const service = findSelectedService();
-      const line = queue.filter(function (entry) {
-        return Number(entry.serviceId) === selectedServiceId();
+      // Keep the existing local history feature.
+      const history = getHistory();
+
+      history.unshift({
+        id: Date.now(),
+        date: new Date().toISOString().slice(0, 10),
+        serviceName: service.name,
+        waitMinutes: service.duration,
+        outcome: "Served"
       });
 
-      if (line.length === 0) {
-        alert("Nobody is waiting for this service.");
-        return;
-      }
+      setHistory(history);
 
-      try {
-        // The backend selects and removes the next person.
-        const result = await apiRequest("/queue/serve", {
-          method: "POST",
-          body: JSON.stringify({
-            serviceId: selectedServiceId()
-          })
-        });
+      addNotification(
+        "User " + servedPerson.userId + " was served at " +
+        service.name + ".",
+        "status",
+        "Served"
+      );
 
-        const servedPerson = result.entry || result.served || result;
+      alert("User " + servedPerson.userId + " was served!");
 
-        // Keep the existing local history feature.
-        const history = getHistory();
-        history.unshift({
-          id: Date.now(),
-          date: new Date().toISOString().slice(0, 10),
-          serviceName: service.name,
-          waitMinutes: service.duration,
-          outcome: "Served"
-        });
-        setHistory(history);
+      await loadQueue();
 
-        addNotification(
-          servedPerson.userName + " was served at " + service.name + ".",
-          "status",
-          "Served"
-        );
-
-        await loadQueue();
-      } catch (error) {
-        alert("Could not serve next user: " + error.message);
-      }
+    } catch (error) {
+      alert("Could not serve next user: " + error.message);
     }
-  );
+  }
+);
 
   document.getElementById("service").addEventListener(
     "change",
