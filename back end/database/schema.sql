@@ -3,9 +3,17 @@
 CREATE DATABASE IF NOT EXISTS queuesmart;
 USE queuesmart;
 
+-- Stores admin information
+INSERT INTO users (email, password, role)
+VALUES ('123@user.com', '12345678', 'admin');
+
+INSERT INTO UserProfile (full_name, email)
+VALUES ('Alan Pourmo', '123@user.com');
+
+
 -- Stores login and authentication information.
-CREATE TABLE IF NOT EXISTS Users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role ENUM('user', 'admin') NOT NULL DEFAULT 'user'
