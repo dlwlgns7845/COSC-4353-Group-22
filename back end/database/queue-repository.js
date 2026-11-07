@@ -143,6 +143,24 @@ function createQueueRepository(pool) {
       return rows[0] || null;
     },
 
+    // Get the information needed to create a history record.
+async getHistoryDetails(entryId) {
+  const [rows] = await pool.execute(
+    `SELECT
+       u.email AS email,
+       s.name AS serviceName,
+       GREATEST(0, TIMESTAMPDIFF(MINUTE, e.joined_at, NOW())) AS waitMinutes
+     FROM QueueEntry e
+     JOIN users u ON e.user_id = u.id
+     JOIN Queue q ON e.queue_id = q.queue_id
+     JOIN services s ON q.service_id = s.service_id
+     WHERE e.entry_id = ?`,
+    [entryId]
+  );
+
+  return rows[0] || null;
+},
+
     /* Put someone in the line. The position is set by renumber(),
        so a high priority entry lands in front of the ones already
        waiting instead of at the end. */

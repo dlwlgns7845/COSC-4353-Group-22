@@ -1,13 +1,9 @@
-
-
+--Password QueueSmartDev2026!
 CREATE DATABASE IF NOT EXISTS queuesmart;
 USE queuesmart;
 
-
-
-
 -- Stores login and authentication information.
-CREATE TABLE IF NOT EXISTS Users (
+CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
@@ -15,17 +11,24 @@ CREATE TABLE IF NOT EXISTS Users (
 );
 
 -- Stores profile information.
--- Email references the unique email in Users.
 CREATE TABLE IF NOT EXISTS UserProfile (
     profile_id INT AUTO_INCREMENT PRIMARY KEY,
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     CONSTRAINT fk_userprofile_email
         FOREIGN KEY (email)
-        REFERENCES Users(email)
+        REFERENCES users(email)
         ON UPDATE CASCADE
         ON DELETE CASCADE
 );
+
+-- Insert sample admin account.
+INSERT INTO users (email, password, role)
+VALUES ('123@user.com', '12345678', 'admin');
+
+-- Insert sample user profile.
+INSERT INTO UserProfile (full_name, email)
+VALUES ('Alan Pourmo', '123@user.com');
 
 -- ===========================================================
 -- Part 6: Notification / History
@@ -42,7 +45,7 @@ CREATE TABLE IF NOT EXISTS Notification (
     status ENUM('sent', 'viewed') NOT NULL DEFAULT 'sent',
     CONSTRAINT fk_notification_email
         FOREIGN KEY (email)
-        REFERENCES Users(email)
+        REFERENCES users(email)
         ON UPDATE CASCADE
         ON DELETE CASCADE
 );
@@ -57,7 +60,7 @@ CREATE TABLE IF NOT EXISTS QueueHistory (
     completed_at DATE NOT NULL,
     CONSTRAINT fk_queuehistory_email
         FOREIGN KEY (email)
-        REFERENCES Users(email)
+        REFERENCES users(email)
         ON UPDATE CASCADE
         ON DELETE CASCADE
 );
@@ -123,13 +126,6 @@ CREATE TABLE IF NOT EXISTS QueueEntry (
         ON DELETE CASCADE,
     CONSTRAINT fk_entry_user
         FOREIGN KEY (user_id)
-        REFERENCES Users(id)
+        REFERENCES users(id)
         ON DELETE CASCADE
 );
-
--- Stores admin information
-INSERT INTO Users (email, password, role)
-VALUES ('123@user.com', '$2b$10$PjDxp2Hsy9q8THdmyCAbKeTsMnyjU365jrQVM8HBwi16.mWAmobdq', 'admin');
-
-INSERT INTO UserProfile (full_name, email)
-VALUES ('Alan Pourmo', '123@user.com');
