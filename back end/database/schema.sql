@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS QueueEntry (
         ON DELETE CASCADE,
     CONSTRAINT fk_entry_user
         FOREIGN KEY (user_id)
-        REFERENCES users(id)
+        REFERENCES Users(id)
         ON DELETE CASCADE
 );
 
