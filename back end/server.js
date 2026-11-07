@@ -32,6 +32,58 @@ app.use(serviceApp);
 const history = require("./history");
 app.use("/api/history", history.router);
 
+// Notification routes
+const notificationStore = require("./notification-store");
+
+// Get all notifications for a user
+app.get("/api/notifications/:email", async (req, res) => {
+    try {
+        const notifications = await notificationStore.listForUser(
+            req.params.email
+        );
+
+        res.json(notifications);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Could not retrieve notifications." });
+    }
+});
+
+// Create a notification
+app.post("/api/notifications", async (req, res) => {
+    try {
+        const notification = await notificationStore.saveNotification({
+            userId: req.body.email,
+            message: req.body.message
+        });
+
+        res.status(201).json(notification);
+    } catch (error) {
+        if (error.problems) {
+            return res.status(400).json({ errors: error.problems });
+        }
+
+        console.error(error);
+        res.status(500).json({ error: "Could not save notification." });
+    }
+});
+
+// Mark all notifications for a user as viewed
+app.patch("/api/notifications/:email/viewed", async (req, res) => {
+    try {
+        const updated = await notificationStore.markAllViewed(
+            req.params.email
+        );
+
+        res.json({
+            message: "Notifications marked as viewed.",
+            updated: updated
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Could not update notifications." });
+    }
+});
 
 //registration
 
@@ -47,7 +99,7 @@ app.post("/api/register", async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
     
     const [existingUser] = await db.execute(
-        "SELECT id FROM Users WHERE email = ? LIMIT 1",
+        "SELECT id FROM users WHERE email = ? LIMIT 1",
         [normalizedEmail]
     );
 
@@ -62,7 +114,7 @@ app.post("/api/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await db.execute(
-        "INSERT INTO Users (email, password, role) VALUES ( ?, ?, ?)",
+        "INSERT INTO users (email, password, role) VALUES ( ?, ?, ?)",
         [normalizedEmail, hashedPassword, "user"]
     );
 
@@ -93,7 +145,7 @@ app.post("/api/login", async (req, res) => {
 
     
     const [users] = await db.execute(
-        "SELECT id, email, password, role FROM Users WHERE email = ? LIMIT 1",
+        "SELECT id, email, password, role FROM users WHERE email = ? LIMIT 1",
         [normalizedEmail]
     );
 
@@ -123,6 +175,13 @@ app.post("/api/login", async (req, res) => {
 
 // Start Server
 
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+serviceApp.initialize()
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server running at http://localhost:${PORT}`);
+        });
+    })
+    .catch(error => {
+        console.error("Server initialization failed:", error);
+        process.exitCode = 1;
+    });
