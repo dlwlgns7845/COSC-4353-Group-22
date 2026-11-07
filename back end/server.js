@@ -22,18 +22,6 @@ const db = mysql.createPool({
     queueLimit: 0
 });
 
-//Admin login information
-const Pass = await bcrypt.hash("12345678", 10);
-
-await db.execute(
-    "INSERT INTO Users (email, password, role) VALUES (?, ?, ?)",
-    ["123@user.com", Pass, "admin"]
-);
-
-await db.execute(
-    "INSERT INTO UserProfile (full_name, email) VALUES (?, ?)",
-    ["Alan Pourmo", "123@user.com"]
-);
 
 // Integrate service and queue APIs with the main server.
 // This includes wait-time estimation and notifications.
@@ -58,7 +46,7 @@ app.post("/api/register", async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
     
-    const [existingUsers] = await db.execute(
+    const [existingUser] = await db.execute(
         "SELECT id FROM users WHERE email = ? LIMIT 1",
         [normalizedEmail]
     );
