@@ -3,16 +3,11 @@
 CREATE DATABASE IF NOT EXISTS queuesmart;
 USE queuesmart;
 
--- Stores admin information
-INSERT INTO users (email, password, role)
-VALUES ('123@user.com', '12345678', 'admin');
 
-INSERT INTO UserProfile (full_name, email)
-VALUES ('Alan Pourmo', '123@user.com');
 
 
 -- Stores login and authentication information.
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS Users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
@@ -131,3 +126,10 @@ CREATE TABLE IF NOT EXISTS QueueEntry (
         REFERENCES users(id)
         ON DELETE CASCADE
 );
+
+-- Stores admin information
+INSERT INTO users (email, password, role)
+VALUES ('123@user.com', '$2b$10$PjDxp2Hsy9q8THdmyCAbKeTsMnyjU365jrQVM8HBwi16.mWAmobdq', 'admin');
+
+INSERT INTO UserProfile (full_name, email)
+VALUES ('Alan Pourmo', '123@user.com');
